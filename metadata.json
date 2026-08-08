@@ -1,0 +1,6 @@
+{
+  "name": "Foma Velo",
+  "description": "Cycling Performance Management System & PMC Chart (CTL, ATL, TSB, TSS from Strava CSV)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
