@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserSettings(data) {
+      return data.ftp is number && data.ftp > 0 && data.ftp < 2000
+          && data.lthr is number && data.lthr > 0 && data.lthr < 300
+          && data.maxHr is number && data.maxHr > 0 && data.maxHr < 300
+          && data.weightKg is number && data.weightKg > 0
+          && data.calculationMode is string
+          && data.ctlDays is number && data.ctlDays > 0
+          && data.atlDays is number && data.atlDays > 0;
+    }
+
+    function isValidActivity(data) {
+      return data.dateMillis is number
+          && data.name is string && data.name.size() <= 300
+          && data.type is string && data.type.size() <= 100
+          && data.movingTimeSec is number && data.movingTimeSec >= 0
+          && data.elapsedTimeSec is number && data.elapsedTimeSec >= 0
+          && data.distanceMeters is number && data.distanceMeters >= 0
+          && data.elevationGainMeters is number
+          && data.isPlanned is bool;
+    }
+
+    match /users/{userId} {
+      allow get, write: if isOwner(userId);
+
+      match /settings/{settingId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidUserSettings(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      match /activities/{activityId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidActivity(incoming());
+        allow update: if isOwner(userId) && isValidActivity(incoming());
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

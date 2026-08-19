@@ -2,6 +2,7 @@ import React from 'react';
 import { Bike, Calendar, Heart, Mountain, Trash2, Tv, Zap } from 'lucide-react';
 import { ActivityEntity, UserSettings } from '../types';
 import { PmcEngine } from '../utils/pmcEngine';
+import { useTheme } from '../context/ThemeContext';
 
 interface ActivityListItemProps {
   activity: ActivityEntity;
@@ -9,11 +10,12 @@ interface ActivityListItemProps {
   onDelete: (id: number) => void;
 }
 
-export const ActivityListItem: React.FC<ActivityListItemProps> = ({
+export const ActivityListItem: React.FC<ActivityListItemProps> = React.memo(({
   activity,
   settings,
   onDelete,
 }) => {
+  const { isDark } = useTheme();
   const tss = PmcEngine.calculateSingleActivityTss(activity, settings);
   const dateStr = new Date(activity.dateMillis).toLocaleDateString('en-US', {
     month: 'short',
@@ -29,18 +31,18 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
 
   const getTypeMeta = () => {
     if (activity.isPlanned) {
-      return { icon: Calendar, color: 'text-purple-400 bg-purple-500/15 border-purple-500/30' };
+      return { icon: Calendar, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800' };
     }
     switch (activity.type.toLowerCase()) {
       case 'virtualride':
       case 'zwift':
-        return { icon: Tv, color: 'text-sky-400 bg-sky-500/15 border-sky-500/30' };
+        return { icon: Tv, color: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800' };
       case 'gravel':
       case 'mountain bike':
       case 'mtb':
-        return { icon: Mountain, color: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30' };
+        return { icon: Mountain, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800' };
       default:
-        return { icon: Bike, color: 'text-orange-400 bg-orange-500/15 border-orange-500/30' };
+        return { icon: Bike, color: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 border-orange-200 dark:border-orange-800' };
     }
   };
 
@@ -49,8 +51,12 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
   return (
     <div
       data-testid={`activity_item_${activity.id}`}
-      className={`w-full bg-slate-800/80 border rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm transition-all hover:border-slate-600/80 ${
-        activity.isPlanned ? 'border-purple-500/40 bg-purple-950/10' : 'border-slate-700/80'
+      className={`w-full border rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-sm transition-all ${
+        activity.isPlanned
+          ? 'border-purple-300 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/20'
+          : isDark
+          ? 'bg-slate-800/90 border-slate-700 hover:border-slate-600'
+          : 'bg-white border-slate-200 hover:border-slate-300'
       }`}
     >
       {/* Icon & Details */}
@@ -64,25 +70,30 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {activity.isPlanned && (
-              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0">
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800 shrink-0">
                 PLANNED
               </span>
             )}
-            <h4 className="text-xs sm:text-sm font-bold text-slate-100 truncate">
+            {(activity.isManual || (!activity.stravaActivityId && !activity.isPlanned)) && (
+              <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shrink-0">
+                MANUAL TSS
+              </span>
+            )}
+            <h4 className="text-xs sm:text-sm font-bold truncate">
               {activity.name}
             </h4>
           </div>
 
-          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+          <div className={`text-[11px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             {dateStr} • {formatDuration(activity.movingTimeSec)}
             {activity.distanceMeters > 0 &&
               ` • ${(activity.distanceMeters / 1000).toFixed(1)} km`}
           </div>
 
           {/* Metrics row */}
-          <div className="flex items-center gap-3 mt-1 text-[11px] font-medium">
+          <div className="flex items-center gap-3 mt-1 text-[11px] font-semibold">
             {activity.avgWatts && activity.avgWatts > 0 && (
-              <div className="flex items-center gap-1 text-amber-400">
+              <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                 <Zap className="w-3 h-3" />
                 <span>
                   {Math.round(activity.avgWatts)}W
@@ -92,7 +103,7 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
             )}
 
             {activity.avgHr && activity.avgHr > 0 && (
-              <div className="flex items-center gap-1 text-rose-400">
+              <div className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
                 <Heart className="w-3 h-3" />
                 <span>{Math.round(activity.avgHr)} bpm</span>
               </div>
@@ -103,17 +114,23 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
 
       {/* TSS Badge & Delete */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-2.5 py-1 text-center min-w-[50px]">
-          <span className="text-sm font-extrabold text-cyan-400 block leading-tight">
+        <div className={`border rounded-xl px-2.5 py-1 text-center min-w-[50px] ${
+          isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-200'
+        }`}>
+          <span className="text-sm font-extrabold text-cyan-600 dark:text-cyan-400 block leading-tight">
             {Math.round(tss)}
           </span>
-          <span className="text-[9px] text-slate-400 font-medium uppercase">TSS</span>
+          <span className={`text-[9px] font-medium uppercase ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            TSS
+          </span>
         </div>
 
         <button
           data-testid={`delete_act_${activity.id}`}
           onClick={() => onDelete(activity.id)}
-          className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-700/50 transition-colors"
+          className={`p-1.5 rounded-lg transition-colors ${
+            isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-slate-700' : 'text-slate-400 hover:text-rose-600 hover:bg-slate-100'
+          }`}
           title="Delete activity"
         >
           <Trash2 className="w-4 h-4" />
@@ -121,4 +138,4 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = ({
       </div>
     </div>
   );
-};
+});

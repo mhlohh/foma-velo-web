@@ -1,12 +1,15 @@
 import React from 'react';
 import { Activity, Gauge, Zap } from 'lucide-react';
 import { PmcSummary } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface MetricsSummaryCardsProps {
   summary: PmcSummary | null;
 }
 
-export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summary }) => {
+export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.memo(({ summary }) => {
+  const { isDark } = useTheme();
+
   if (!summary) return null;
 
   const {
@@ -15,6 +18,9 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
     currentTsb,
     rampRate7d,
     totalTssLast7d,
+    weeklyTss,
+    weeklyDistanceKm,
+    weeklyHours,
     totalDistanceKm,
     formStatus,
   } = summary;
@@ -26,21 +32,29 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
         {/* Fitness (CTL) */}
         <div
           data-testid="metric_ctl_card"
-          className="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm"
+          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
+            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+          }`}
         >
           <div className="flex items-center justify-between">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/15 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-cyan-400" />
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+              isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-50 text-cyan-600'
+            }`}>
+              <Activity className="w-4 h-4" />
             </div>
-            <span className="text-[10px] text-slate-400 font-medium truncate">42-day load</span>
+            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              42-day load
+            </span>
           </div>
           <div className="mt-2 sm:mt-3">
-            <span className="text-xs text-slate-400 font-medium block truncate">Fitness (CTL)</span>
+            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Fitness (CTL)
+            </span>
             <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-2xl font-bold text-cyan-400">
+              <span className="text-base sm:text-2xl font-extrabold text-cyan-600 dark:text-cyan-400">
                 {currentCtl.toFixed(1)}
               </span>
-              <span className="text-[10px] text-slate-400">TSS/d</span>
+              <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TSS/d</span>
             </div>
           </div>
         </div>
@@ -48,21 +62,29 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
         {/* Fatigue (ATL) */}
         <div
           data-testid="metric_atl_card"
-          className="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm"
+          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
+            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+          }`}
         >
           <div className="flex items-center justify-between">
-            <div className="w-7 h-7 rounded-full bg-rose-500/15 flex items-center justify-center">
-              <Gauge className="w-4 h-4 text-rose-400" />
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+              isDark ? 'bg-rose-950 text-rose-400' : 'bg-rose-50 text-rose-600'
+            }`}>
+              <Gauge className="w-4 h-4" />
             </div>
-            <span className="text-[10px] text-slate-400 font-medium truncate">7-day load</span>
+            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              7-day load
+            </span>
           </div>
           <div className="mt-2 sm:mt-3">
-            <span className="text-xs text-slate-400 font-medium block truncate">Fatigue (ATL)</span>
+            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Fatigue (ATL)
+            </span>
             <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-2xl font-bold text-rose-400">
+              <span className="text-base sm:text-2xl font-extrabold text-rose-600 dark:text-rose-400">
                 {currentAtl.toFixed(1)}
               </span>
-              <span className="text-[10px] text-slate-400">TSS/d</span>
+              <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TSS/d</span>
             </div>
           </div>
         </div>
@@ -70,7 +92,9 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
         {/* Form (TSB) */}
         <div
           data-testid="metric_tsb_card"
-          className="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm"
+          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
+            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+          }`}
         >
           <div className="flex items-center justify-between">
             <div
@@ -79,18 +103,22 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
             >
               <Zap className="w-4 h-4" style={{ color: formStatus.colorHex }} />
             </div>
-            <span className="text-[10px] text-slate-400 font-medium truncate">Readiness</span>
+            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Readiness
+            </span>
           </div>
           <div className="mt-2 sm:mt-3">
-            <span className="text-xs text-slate-400 font-medium block truncate">Form (TSB)</span>
+            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Form (TSB)
+            </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span
-                className="text-base sm:text-2xl font-bold"
+                className="text-base sm:text-2xl font-extrabold"
                 style={{ color: formStatus.colorHex }}
               >
                 {currentTsb >= 0 ? `+${currentTsb.toFixed(1)}` : currentTsb.toFixed(1)}
               </span>
-              <span className="text-[10px] text-slate-400">TSB</span>
+              <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TSB</span>
             </div>
           </div>
         </div>
@@ -99,16 +127,14 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
       {/* Form Readiness Banner Card */}
       <div
         data-testid="form_status_banner"
-        className="w-full rounded-2xl p-3.5 sm:p-4 border shadow-sm transition-all"
-        style={{
-          backgroundColor: `${formStatus.colorHex}12`,
-          borderColor: `${formStatus.colorHex}40`,
-        }}
+        className={`w-full rounded-2xl p-3.5 sm:p-4 border shadow-sm transition-all ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200'
+        }`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="w-2.5 h-2.5 rounded-full animate-pulse"
+              className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: formStatus.colorHex }}
             />
             <h3
@@ -123,28 +149,44 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = ({ summar
           <span
             className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
               rampRate7d > 8.0
-                ? 'bg-rose-950/60 text-rose-300 border-rose-800/60'
-                : 'bg-slate-800/80 text-slate-300 border-slate-700/80'
+                ? isDark
+                  ? 'bg-rose-950 text-rose-300 border-rose-800'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                : isDark
+                ? 'bg-slate-900 text-slate-300 border-slate-700'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
             Ramp: {rampRate7d >= 0 ? `+${rampRate7d.toFixed(1)}` : rampRate7d.toFixed(1)} /wk
           </span>
         </div>
 
-        <p className="text-xs sm:text-sm text-slate-300 mt-1.5 leading-relaxed">
+        <p className={`text-xs sm:text-sm mt-1.5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
           {formStatus.description}
         </p>
 
-        {/* 7-day TSS and distance summary */}
-        <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-slate-700/40 text-xs font-medium text-slate-400">
+        {/* Weekly TSS, weekly metrics, and distance summary */}
+        <div className={`flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 pt-2.5 border-t text-xs font-medium ${
+          isDark ? 'border-slate-700/60 text-slate-400' : 'border-slate-200 text-slate-600'
+        }`}>
           <div>
-            7d Load: <span className="font-bold text-slate-200">{Math.round(totalTssLast7d)} TSS</span>
+            Weekly Load: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(weeklyTss ?? totalTssLast7d)} TSS/wk</span>
           </div>
+          {typeof weeklyDistanceKm === 'number' && weeklyDistanceKm > 0 && (
+            <div>
+              Weekly Dist: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(weeklyDistanceKm)} km/wk</span>
+            </div>
+          )}
+          {typeof weeklyHours === 'number' && weeklyHours > 0 && (
+            <div>
+              Weekly Time: <span className="font-bold text-slate-900 dark:text-slate-100">{weeklyHours >= 10 ? weeklyHours.toFixed(1) : weeklyHours.toFixed(1)} hrs/wk</span>
+            </div>
+          )}
           <div>
-            Total Dist: <span className="font-bold text-slate-200">{Math.round(totalDistanceKm)} km</span>
+            Total Dist: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(totalDistanceKm)} km</span>
           </div>
         </div>
       </div>
     </div>
   );
-};
+});

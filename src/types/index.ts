@@ -16,6 +16,7 @@ export interface ActivityEntity {
   kilojoules?: number | null;
   stravaTss?: number | null;
   isPlanned: boolean;
+  isManual?: boolean;
   notes?: string | null;
 }
 
@@ -83,6 +84,9 @@ export interface PmcSummary {
   currentTsb: number;
   rampRate7d: number;
   totalTssLast7d: number;
+  weeklyTss?: number;
+  weeklyDistanceKm?: number;
+  weeklyHours?: number;
   totalDistanceKm: number;
   totalMovingTimeSec: number;
   formStatus: FormStatusInfo;

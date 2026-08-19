@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { DailyPmcData } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface PmcChartProps {
   dailyList: DailyPmcData[];
@@ -8,13 +9,17 @@ interface PmcChartProps {
   onDaySelected: (day: DailyPmcData) => void;
 }
 
-export const PmcChart: React.FC<PmcChartProps> = ({
+export const PmcChart: React.FC<PmcChartProps> = React.memo(({
   dailyList,
   selectedDay,
   horizonDays,
   onDaySelected,
 }) => {
+  const { isDark } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const rectRef = useRef<DOMRect | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const hoverIndexRef = useRef<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const visibleList = useMemo(() => {
@@ -25,6 +30,69 @@ export const PmcChart: React.FC<PmcChartProps> = ({
     return dailyList.slice(-horizonDays);
   }, [dailyList, horizonDays]);
 
+  // Pre-calculate and memoize all chart SVG paths, scales, and bars
+  const chartGeometry = useMemo(() => {
+    if (visibleList.length === 0) return null;
+
+    const maxTss = Math.max(...visibleList.map((d) => d.tss), 100);
+    const maxLineVal = Math.max(...visibleList.map((d) => Math.max(d.ctl, d.atl)), 100);
+    const minTsb = Math.min(...visibleList.map((d) => d.tsb), -40);
+    const maxTsb = Math.max(...visibleList.map((d) => d.tsb), 40);
+
+    const chartHeight = 220;
+    const chartWidth = 800;
+    const xStep = chartWidth / Math.max(visibleList.length - 1, 1);
+
+    let ctlPathD = '';
+    let atlPathD = '';
+    let tsbPathD = '';
+
+    visibleList.forEach((d, i) => {
+      const x = i * xStep;
+
+      const ctlY = chartHeight - (d.ctl / maxLineVal) * (chartHeight * 0.85);
+      const atlY = chartHeight - (d.atl / maxLineVal) * (chartHeight * 0.85);
+
+      const tsbRatio = (d.tsb - minTsb) / (maxTsb - minTsb);
+      const tsbY = chartHeight * (1.0 - tsbRatio);
+
+      if (i === 0) {
+        ctlPathD += `M ${x.toFixed(1)} ${ctlY.toFixed(1)}`;
+        atlPathD += `M ${x.toFixed(1)} ${atlY.toFixed(1)}`;
+        tsbPathD += `M ${x.toFixed(1)} ${tsbY.toFixed(1)}`;
+      } else {
+        ctlPathD += ` L ${x.toFixed(1)} ${ctlY.toFixed(1)}`;
+        atlPathD += ` L ${x.toFixed(1)} ${atlY.toFixed(1)}`;
+        tsbPathD += ` L ${x.toFixed(1)} ${tsbY.toFixed(1)}`;
+      }
+    });
+
+    const zeroTsbY = chartHeight * (maxTsb / (maxTsb - minTsb));
+
+    const bars = visibleList.map((d, i) => {
+      const x = i * xStep;
+      const barWidth = Math.max(2, (chartWidth / visibleList.length) * 0.65);
+      const barHeight = (d.tss / maxTss) * (chartHeight * 0.45);
+      const barTop = chartHeight - barHeight;
+      return { x, barWidth, barHeight, barTop, isFuture: d.isFuture };
+    });
+
+    return {
+      maxTss,
+      maxLineVal,
+      minTsb,
+      maxTsb,
+      chartHeight,
+      chartWidth,
+      xStep,
+      ctlPathD,
+      atlPathD,
+      tsbPathD,
+      zeroTsbY,
+      bars,
+    };
+  }, [visibleList]);
+
   const activeDay = useMemo(() => {
     if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < visibleList.length) {
       return visibleList[hoverIndex];
@@ -32,72 +100,101 @@ export const PmcChart: React.FC<PmcChartProps> = ({
     return selectedDay ?? visibleList[visibleList.length - 1] ?? null;
   }, [hoverIndex, visibleList, selectedDay]);
 
-  if (visibleList.length === 0) {
+  // Update rect cache
+  const updateRect = useCallback(() => {
+    if (containerRef.current) {
+      rectRef.current = containerRef.current.getBoundingClientRect();
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateRect);
+    return () => {
+      window.removeEventListener('resize', updateRect);
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [updateRect]);
+
+  // Process pointer coordinates inside RAF to ensure smooth 60/120fps tracking
+  const processPointerEvent = useCallback(
+    (clientX: number) => {
+      if (!rectRef.current) {
+        updateRect();
+      }
+      const rect = rectRef.current;
+      if (!rect || rect.width <= 0 || visibleList.length === 0) return;
+
+      const x = clientX - rect.left;
+      const ratio = Math.max(0, Math.min(1, x / rect.width));
+      const idx = Math.round(ratio * (visibleList.length - 1));
+
+      if (hoverIndexRef.current !== idx) {
+        hoverIndexRef.current = idx;
+        setHoverIndex(idx);
+        if (visibleList[idx]) {
+          onDaySelected(visibleList[idx]);
+        }
+      }
+    },
+    [visibleList, onDaySelected, updateRect]
+  );
+
+  const handlePointerEnter = (e: React.PointerEvent<SVGSVGElement>) => {
+    updateRect();
+    handlePointerMove(e);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const clientX = e.clientX;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(() => {
+      processPointerEvent(clientX);
+    });
+  };
+
+  const handlePointerLeave = () => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    hoverIndexRef.current = null;
+    setHoverIndex(null);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    updateRect();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    processPointerEvent(e.clientX);
+  };
+
+  if (!chartGeometry || visibleList.length === 0) {
     return (
       <div
         data-testid="pmc_chart_card"
-        className="w-full h-64 bg-slate-800/80 border border-slate-700/80 rounded-3xl flex items-center justify-center p-6 text-slate-400 text-sm"
+        className={`w-full h-64 border rounded-3xl flex items-center justify-center p-6 text-sm font-medium ${
+          isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+        }`}
       >
         No activity data available for PMC chart
       </div>
     );
   }
 
-  // Calculate Chart Extents
-  const maxTss = Math.max(...visibleList.map((d) => d.tss), 100);
-  const maxLineVal = Math.max(...visibleList.map((d) => Math.max(d.ctl, d.atl)), 100);
-  const minTsb = Math.min(...visibleList.map((d) => d.tsb), -40);
-  const maxTsb = Math.max(...visibleList.map((d) => d.tsb), 40);
-
-  const chartHeight = 220;
-  const chartWidth = 800; // SVG viewBox width
-
-  const xStep = chartWidth / Math.max(visibleList.length - 1, 1);
-
-  // Calculate SVG Paths
-  let ctlPathD = '';
-  let atlPathD = '';
-  let tsbPathD = '';
-
-  visibleList.forEach((d, i) => {
-    const x = i * xStep;
-
-    const ctlY = chartHeight - (d.ctl / maxLineVal) * (chartHeight * 0.85);
-    const atlY = chartHeight - (d.atl / maxLineVal) * (chartHeight * 0.85);
-
-    const tsbRatio = (d.tsb - minTsb) / (maxTsb - minTsb);
-    const tsbY = chartHeight * (1.0 - tsbRatio);
-
-    if (i === 0) {
-      ctlPathD += `M ${x.toFixed(1)} ${ctlY.toFixed(1)}`;
-      atlPathD += `M ${x.toFixed(1)} ${atlY.toFixed(1)}`;
-      tsbPathD += `M ${x.toFixed(1)} ${tsbY.toFixed(1)}`;
-    } else {
-      ctlPathD += ` L ${x.toFixed(1)} ${ctlY.toFixed(1)}`;
-      atlPathD += ` L ${x.toFixed(1)} ${atlY.toFixed(1)}`;
-      tsbPathD += ` L ${x.toFixed(1)} ${tsbY.toFixed(1)}`;
-    }
-  });
-
-  // TSB Zero Y line
-  const zeroTsbY = chartHeight * (maxTsb / (maxTsb - minTsb));
-
-  // Handle pointer scrub
-  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    const idx = Math.round(ratio * (visibleList.length - 1));
-    if (idx !== hoverIndex) {
-      setHoverIndex(idx);
-      onDaySelected(visibleList[idx]);
-    }
-  };
-
-  const handlePointerLeave = () => {
-    setHoverIndex(null);
-  };
+  const {
+    maxLineVal,
+    chartHeight,
+    chartWidth,
+    xStep,
+    ctlPathD,
+    atlPathD,
+    tsbPathD,
+    zeroTsbY,
+    bars,
+  } = chartGeometry;
 
   const activeIndex = visibleList.findIndex((d) => d.dateString === activeDay?.dateString);
   const activeX = activeIndex >= 0 ? activeIndex * xStep : null;
@@ -115,26 +212,28 @@ export const PmcChart: React.FC<PmcChartProps> = ({
   return (
     <div
       data-testid="pmc_chart_card"
-      className="w-full bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 sm:p-5 shadow-lg space-y-3"
+      className={`w-full border rounded-3xl p-4 sm:p-5 shadow-sm space-y-3 transition-colors ${
+        isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200'
+      }`}
     >
       {/* Legend Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-sm sm:text-base font-bold text-slate-100">
+        <h2 className="text-sm sm:text-base font-bold">
           Performance Management Chart
         </h2>
 
         <div className="flex items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-            <span className="text-slate-300 font-medium">CTL</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
+            <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>CTL</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-            <span className="text-slate-300 font-medium">ATL</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>ATL</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            <span className="text-slate-300 font-medium">TSB</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>TSB</span>
           </div>
         </div>
       </div>
@@ -145,9 +244,10 @@ export const PmcChart: React.FC<PmcChartProps> = ({
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           preserveAspectRatio="none"
           className="w-full h-full overflow-visible"
+          onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove}
           onPointerLeave={handlePointerLeave}
-          onPointerDown={handlePointerMove}
+          onPointerDown={handlePointerDown}
         >
           {/* Dashed Grid Lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
@@ -157,7 +257,7 @@ export const PmcChart: React.FC<PmcChartProps> = ({
               y1={chartHeight * ratio}
               x2={chartWidth}
               y2={chartHeight * ratio}
-              stroke="#334155"
+              stroke={isDark ? '#334155' : '#E2E8F0'}
               strokeDasharray="4 4"
               strokeWidth="1"
             />
@@ -169,31 +269,23 @@ export const PmcChart: React.FC<PmcChartProps> = ({
             y1={zeroTsbY}
             x2={chartWidth}
             y2={zeroTsbY}
-            stroke="#475569"
+            stroke={isDark ? '#475569' : '#94A3B8'}
             strokeWidth="1.5"
           />
 
           {/* TSS Daily Bars */}
-          {visibleList.map((d, i) => {
-            const x = i * xStep;
-            const barWidth = Math.max(2, (chartWidth / visibleList.length) * 0.65);
-            const barHeight = (d.tss / maxTss) * (chartHeight * 0.45);
-            const barTop = chartHeight - barHeight;
-            const isFuture = d.isFuture;
-
-            return (
-              <rect
-                key={i}
-                x={x - barWidth / 2}
-                y={barTop}
-                width={barWidth}
-                height={barHeight}
-                fill={isFuture ? '#FC5200' : '#38BDF8'}
-                opacity={isFuture ? 0.6 : 0.35}
-                rx="1"
-              />
-            );
-          })}
+          {bars.map((bar, i) => (
+            <rect
+              key={i}
+              x={bar.x - bar.barWidth / 2}
+              y={bar.barTop}
+              width={bar.barWidth}
+              height={bar.barHeight}
+              fill={bar.isFuture ? '#FC5200' : '#0284C7'}
+              opacity={bar.isFuture ? 0.6 : 0.35}
+              rx="1"
+            />
+          ))}
 
           {/* TSB Path */}
           <path d={tsbPathD} fill="none" stroke="#10B981" strokeWidth="2.5" />
@@ -212,7 +304,7 @@ export const PmcChart: React.FC<PmcChartProps> = ({
                 y1="0"
                 x2={activeX}
                 y2={chartHeight}
-                stroke="#F8FAFC"
+                stroke={isDark ? '#F8FAFC' : '#0F172A'}
                 strokeDasharray="3 3"
                 strokeWidth="1.5"
               />
@@ -244,36 +336,39 @@ export const PmcChart: React.FC<PmcChartProps> = ({
 
       {/* Scrubber Day Detail Pill */}
       {activeDay && (
-        <div className="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div className={`border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-colors ${
+          isDark ? 'bg-slate-900/80 border-slate-700' : 'bg-slate-50 border-slate-200'
+        }`}>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-200">
+            <span className="font-bold">
               {formatDate(activeDay.dateMillis)}
               {activeDay.isFuture ? ' (Planned)' : ''}
             </span>
-            <span className="text-slate-400">
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
               • {activeDay.activities.length > 0 ? `${activeDay.activities.length} activity` : 'Rest Day'}
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-slate-300 font-mono">
+          <div className="flex items-center gap-4 font-mono font-medium">
             <div>
-              <span className="text-cyan-400 font-semibold">CTL:</span> {activeDay.ctl.toFixed(1)}
+              <span className="text-cyan-600 dark:text-cyan-400 font-semibold">CTL:</span> {activeDay.ctl.toFixed(1)}
             </div>
             <div>
-              <span className="text-rose-400 font-semibold">ATL:</span> {activeDay.atl.toFixed(1)}
+              <span className="text-rose-600 dark:text-rose-400 font-semibold">ATL:</span> {activeDay.atl.toFixed(1)}
             </div>
             <div>
-              <span className={`${activeDay.tsb >= 0 ? 'text-emerald-400' : 'text-amber-400'} font-semibold`}>
+              <span className={`${activeDay.tsb >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-semibold`}>
                 TSB:
               </span>{' '}
               {activeDay.tsb >= 0 ? `+${activeDay.tsb.toFixed(1)}` : activeDay.tsb.toFixed(1)}
             </div>
             <div>
-              <span className="text-blue-400 font-semibold">TSS:</span> {Math.round(activeDay.tss)}
+              <span className="text-blue-600 dark:text-blue-400 font-semibold">TSS:</span> {Math.round(activeDay.tss)}
             </div>
           </div>
         </div>
       )}
     </div>
   );
-};
+});
+

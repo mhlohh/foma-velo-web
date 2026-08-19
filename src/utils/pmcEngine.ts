@@ -199,11 +199,15 @@ export class PmcEngine {
       currCal.setDate(currCal.getDate() + 1);
     }
 
-    // Calculate 7-day ramp rate up to today
+    // Calculate weekly stats (Calendar Week: Mon - Sun) and 7-day ramp rate up to today
     const todayIndex = dailyList.findIndex(
       (d) => d.dateString === todayKey
     );
     const effectiveTodayIndex = todayIndex >= 0 ? todayIndex : dailyList.length - 1;
+
+    let weeklyTss = 0;
+    let weeklyDistanceKm = 0;
+    let weeklyMovingTimeSec = 0;
 
     if (effectiveTodayIndex >= 0) {
       const todayPmc = dailyList[effectiveTodayIndex];
@@ -211,12 +215,37 @@ export class PmcEngine {
       atlToday = todayPmc.atl;
       tsbToday = todayPmc.tsb;
 
-      const index7DaysAgo = Math.max(0, effectiveTodayIndex - 7);
-      ctl7DaysAgo = dailyList[index7DaysAgo].ctl;
+      // 7-day rolling ramp rate (CTL change over past 7 days)
+      const ctlBefore7dIndex = Math.max(0, effectiveTodayIndex - 7);
+      ctl7DaysAgo = dailyList[ctlBefore7dIndex].ctl;
 
+      // 7-day rolling TSS for reference
+      const index7DaysAgo = Math.max(0, effectiveTodayIndex - 6);
       totalTssLast7d = 0;
       for (let i = index7DaysAgo; i <= effectiveTodayIndex; i++) {
         totalTssLast7d += dailyList[i].tss;
+      }
+
+      // Calendar Week (Monday to Sunday):
+      // In JavaScript getDay(): 0 is Sunday, 1 is Monday, ..., 6 is Saturday.
+      const [ty, tm, td] = todayPmc.dateString.split('-').map(Number);
+      const todayDate = new Date(ty, tm - 1, td);
+      const dayOfWeek = todayDate.getDay();
+      const daysSinceMonday = (dayOfWeek + 6) % 7; // Monday = 0, Tuesday = 1, ..., Saturday = 5, Sunday = 6
+      const mondayIndex = Math.max(0, effectiveTodayIndex - daysSinceMonday);
+      // End of this calendar week (Sunday), bounded by available dailyList
+      const sundayIndex = Math.min(dailyList.length - 1, mondayIndex + 6);
+
+      weeklyTss = 0;
+      weeklyDistanceKm = 0;
+      weeklyMovingTimeSec = 0;
+
+      for (let i = mondayIndex; i <= sundayIndex; i++) {
+        weeklyTss += dailyList[i].tss;
+        for (const act of dailyList[i].activities) {
+          weeklyDistanceKm += (act.distanceMeters || 0) / 1000;
+          weeklyMovingTimeSec += (act.movingTimeSec || 0);
+        }
       }
     }
 
@@ -241,6 +270,9 @@ export class PmcEngine {
       currentTsb: tsbToday,
       rampRate7d: rampRate,
       totalTssLast7d,
+      weeklyTss,
+      weeklyDistanceKm,
+      weeklyHours: weeklyMovingTimeSec / 3600,
       totalDistanceKm: totalDist,
       totalMovingTimeSec: totalTime,
       formStatus: FORM_STATUSES[formStatusKey],
