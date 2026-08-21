@@ -5,6 +5,7 @@ import {
   Plus,
   RotateCcw,
   Settings,
+  Sparkles,
   Upload,
   Zap,
 } from 'lucide-react';
@@ -49,6 +50,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { AddWorkoutDialog } from './AddWorkoutDialog';
 import { TrainingZonesSheet } from './TrainingZonesSheet';
 import { ClearConfirmDialog } from './ClearConfirmDialog';
+import { AiTrainingAnalysisModal } from './AiTrainingAnalysisModal';
 
 export const MainScreen: React.FC = () => {
   const { isDark } = useTheme();
@@ -80,6 +82,7 @@ export const MainScreen: React.FC = () => {
   const [showAddWorkoutDialog, setShowAddWorkoutDialog] = useState(false);
   const [showZonesSheet, setShowZonesSheet] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
 
   // Monitor auth state changes
   useEffect(() => {
@@ -358,6 +361,16 @@ export const MainScreen: React.FC = () => {
 
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <button
+                data-testid="ai_coach_btn"
+                onClick={() => setShowAiAnalysisModal(true)}
+                className="p-2 sm:px-3 sm:py-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                title="AI Training Coach & Analysis"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">AI Coach</span>
+              </button>
+
+              <button
                 data-testid="btn_training_zones"
                 onClick={() => setShowZonesSheet(true)}
                 className={`p-2 sm:px-3 sm:py-1.5 border rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
@@ -422,7 +435,10 @@ export const MainScreen: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 space-y-4">
         {/* Top PMC Metrics Cards */}
-        <MetricsSummaryCards summary={pmcSummary} />
+        <MetricsSummaryCards
+          summary={pmcSummary}
+          onOpenAiAnalysis={() => setShowAiAnalysisModal(true)}
+        />
 
         {/* Interactive PMC Chart */}
         <PmcChart
@@ -549,6 +565,17 @@ export const MainScreen: React.FC = () => {
           onClear={handleClearAll}
           onDeleteManualOnly={handleDeleteManualOnly}
           onResetSample={handleResetSample}
+        />
+      )}
+
+      {showAiAnalysisModal && (
+        <AiTrainingAnalysisModal
+          isOpen={showAiAnalysisModal}
+          onClose={() => setShowAiAnalysisModal(false)}
+          summary={pmcSummary}
+          activities={activities}
+          settings={settings}
+          selectedDay={selectedDay}
         />
       )}
     </div>

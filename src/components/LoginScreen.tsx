@@ -15,10 +15,28 @@ export const LoginScreen: React.FC = () => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      console.error('Google login error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message || 'Failed to sign in with Google');
+      const code = err?.code || '';
+      const message = err?.message || '';
+
+      // User closed the popup or cancelled: this is expected user behavior, not an application crash/error
+      if (
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/user-cancelled' ||
+        message.includes('popup-closed-by-user') ||
+        message.includes('cancelled-popup-request')
+      ) {
+        console.info('Google sign-in popup closed by user.');
+        return;
       }
+
+      if (code === 'auth/popup-blocked') {
+        setError('Sign-in pop-up was blocked by your browser. Please allow pop-ups for this tab and try again.');
+        return;
+      }
+
+      console.warn('Google login failed:', err);
+      setError(message || 'Failed to sign in with Google. Please try again.');
     } finally {
       setLoading(false);
     }

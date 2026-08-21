@@ -32,10 +32,28 @@ export const AuthBar: React.FC<AuthBarProps> = ({ onUserChanged, isSyncing = fal
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      console.error('Google Sign-In error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setAuthError(err.message || 'Failed to sign in with Google');
+      const code = err?.code || '';
+      const message = err?.message || '';
+
+      // User closed popup or cancelled: expected user behavior
+      if (
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/user-cancelled' ||
+        message.includes('popup-closed-by-user') ||
+        message.includes('cancelled-popup-request')
+      ) {
+        console.info('Google sign-in popup closed by user.');
+        return;
       }
+
+      if (code === 'auth/popup-blocked') {
+        setAuthError('Sign-in pop-up was blocked. Please allow pop-ups and try again.');
+        return;
+      }
+
+      console.warn('Google Sign-In failed:', err);
+      setAuthError(message || 'Failed to sign in with Google');
     }
   };
 

@@ -1,13 +1,14 @@
 import React from 'react';
-import { Activity, Gauge, Zap } from 'lucide-react';
+import { Activity, Gauge, Sparkles, Zap } from 'lucide-react';
 import { PmcSummary } from '../types';
 import { useTheme } from '../context/ThemeContext';
 
 interface MetricsSummaryCardsProps {
   summary: PmcSummary | null;
+  onOpenAiAnalysis?: () => void;
 }
 
-export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.memo(({ summary }) => {
+export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.memo(({ summary, onOpenAiAnalysis }) => {
   const { isDark } = useTheme();
 
   if (!summary) return null;
@@ -145,20 +146,36 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
             </h3>
           </div>
 
-          {/* Ramp Rate Pill */}
-          <span
-            className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-              rampRate7d > 8.0
-                ? isDark
-                  ? 'bg-rose-950 text-rose-300 border-rose-800'
-                  : 'bg-rose-50 text-rose-700 border-rose-200'
-                : isDark
-                ? 'bg-slate-900 text-slate-300 border-slate-700'
-                : 'bg-slate-100 text-slate-700 border-slate-200'
-            }`}
-          >
-            Ramp: {rampRate7d >= 0 ? `+${rampRate7d.toFixed(1)}` : rampRate7d.toFixed(1)} /wk
-          </span>
+          {/* Actions & Ramp Rate Pill */}
+          <div className="flex items-center gap-2">
+            {onOpenAiAnalysis && (
+              <button
+                type="button"
+                onClick={onOpenAiAnalysis}
+                data-testid="ai_analysis_banner_btn"
+                className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-sm transition-all cursor-pointer"
+                title="Open AI Training Analysis"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Coach Analysis</span>
+              </button>
+            )}
+
+            {/* Ramp Rate Pill */}
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                rampRate7d > 8.0
+                  ? isDark
+                    ? 'bg-rose-950 text-rose-300 border-rose-800'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                  : isDark
+                  ? 'bg-slate-900 text-slate-300 border-slate-700'
+                  : 'bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              Ramp: {rampRate7d >= 0 ? `+${rampRate7d.toFixed(1)}` : rampRate7d.toFixed(1)} /wk
+            </span>
+          </div>
         </div>
 
         <p className={`text-xs sm:text-sm mt-1.5 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
