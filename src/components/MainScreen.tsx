@@ -26,7 +26,6 @@ import { TopNav, PageId } from './layout/TopNav';
 import { SideRail, RailTool } from './layout/SideRail';
 import { LoginPage } from './pages/LoginPage';
 import { ActivityListItem } from './ActivityListItem';
-import { ThresholdAndDataSetup } from './ThresholdAndDataSetup';
 import { MetricsSummaryCards } from './MetricsSummaryCards';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CalendarPage } from './pages/calendar/CalendarPage';
@@ -35,7 +34,6 @@ import { ImportCsvDialog } from './ImportCsvDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { AddWorkoutDialog } from './AddWorkoutDialog';
 import { TrainingZonesSheet } from './TrainingZonesSheet';
-import { ClearConfirmDialog } from './ClearConfirmDialog';
 import { AiTrainingAnalysisModal } from './AiTrainingAnalysisModal';
 
 export const MainScreen: React.FC = () => {
@@ -70,7 +68,6 @@ export const MainScreen: React.FC = () => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAddWorkoutDialog, setShowAddWorkoutDialog] = useState(false);
   const [showZonesSheet, setShowZonesSheet] = useState(false);
-  const [showClearDialog, setShowClearDialog] = useState(false);
   const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
 
   // ---------------------------------------------------------------
@@ -255,58 +252,6 @@ export const MainScreen: React.FC = () => {
     }
   };
 
-  const handleDeleteActivity = async (id: number) => {
-    setActivities((prev) => prev.filter((act) => act.id !== id));
-    if (session?.user) {
-      setIsSyncing(true);
-      try {
-        await deleteActivityRemote(session.user.id, id);
-      } finally {
-        setIsSyncing(false);
-      }
-    }
-  };
-
-  const handleClearAll = async () => {
-    setActivities([]);
-    if (session?.user) {
-      setIsSyncing(true);
-      try {
-        await deleteAllActivities(session.user.id);
-      } finally {
-        setIsSyncing(false);
-      }
-    }
-  };
-
-  const handleDeleteManualOnly = async () => {
-    const ids = activities
-      .filter((act) => act.isManual || act.isPlanned || !act.stravaActivityId)
-      .map((act) => act.id);
-    setActivities((prev) => prev.filter((act) => !ids.includes(act.id)));
-    if (session?.user) {
-      setIsSyncing(true);
-      try {
-        await deleteActivitiesRemote(session.user.id, ids);
-      } finally {
-        setIsSyncing(false);
-      }
-    }
-  };
-
-  const handleResetSample = async () => {
-    const sample = generatePresetSampleData();
-    setActivities(sample);
-    if (session?.user) {
-      setIsSyncing(true);
-      try {
-        await upsertActivities(session.user.id, sample);
-      } finally {
-        setIsSyncing(false);
-      }
-    }
-  };
-
   const handleModeChanged = async (mode: CalculationMode) => {
     const updated = { ...settings, calculationMode: mode };
     setSettings(updated);
@@ -364,23 +309,34 @@ export const MainScreen: React.FC = () => {
 
   if (!hasConfiguredThresholds) {
     return (
-      <ThresholdAndDataSetup
-        currentUser={{
-          displayName: session.user.user_metadata?.['full_name'] ?? session.user.user_metadata?.['name'] ?? null,
-          email: session.user.email ?? null,
-          avatarUrl: session.user.user_metadata?.['avatar_url'] ?? session.user.user_metadata?.['picture'] ?? null,
-        }}
-        currentSettings={settings}
-        currentActivities={activities}
-        onComplete={handleSetupComplete}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-md border border-amber-300 bg-amber-50 rounded-xl p-6 text-center space-y-3">
+          <h1 className="text-lg font-bold text-amber-800">Thresholds required</h1>
+          <p className="text-xs text-amber-700 leading-relaxed">
+            Complete the threshold setup to unlock your PMC dashboard and activity history.
+          </p>
+        </div>
+      </div>
     );
   }
 
   const user = session.user;
+
   const displayName: string | null =
     user.user_metadata?.['full_name'] ?? user.user_metadata?.['name'] ?? user.email?.split('@')[0] ?? null;
   const avatarUrl: string | null = user.user_metadata?.['avatar_url'] ?? user.user_metadata?.['picture'] ?? null;
+
+  const handleDeleteActivity = async (id: number): Promise<void> => {
+    setActivities((prev) => prev.filter((act) => act.id !== id));
+    if (session?.user) {
+      setIsSyncing(true);
+      try {
+        await deleteActivityRemote(session.user.id, id);
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+  };
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors ${
@@ -467,14 +423,7 @@ export const MainScreen: React.FC = () => {
               <Settings className="w-4 h-4" />
             </button>
 
-            <button
-              data-testid="clear_dataset_btn"
-              onClick={() => setShowClearDialog(true)}
-              className="p-2 border rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-800 dark:border-slate-700 transition-all"
-              title="Clear or Reset Dataset"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+
           </div>
 
           {activePage === 'home' && (
@@ -547,12 +496,7 @@ export const MainScreen: React.FC = () => {
                       >
                         Import CSV
                       </button>
-                      <button
-                        onClick={handleResetSample}
-                        className="px-3 py-1.5 text-xs font-bold border rounded-lg bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
-                      >
-                        Load Sample Data
-                      </button>
+
                     </div>
                   </div>
                 ) : (
@@ -588,14 +532,6 @@ export const MainScreen: React.FC = () => {
         <AddWorkoutDialog onDismiss={() => setShowAddWorkoutDialog(false)} onAdd={handleAddWorkout} />
       )}
       {showZonesSheet && <TrainingZonesSheet settings={settings} onDismiss={() => setShowZonesSheet(false)} />}
-      {showClearDialog && (
-        <ClearConfirmDialog
-          onDismiss={() => setShowClearDialog(false)}
-          onClear={handleClearAll}
-          onDeleteManualOnly={handleDeleteManualOnly}
-          onResetSample={handleResetSample}
-        />
-      )}
       {showAiAnalysisModal && (
         <AiTrainingAnalysisModal
           isOpen={showAiAnalysisModal}
