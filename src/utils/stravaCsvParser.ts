@@ -1,5 +1,56 @@
 import { ActivityEntity } from '../types';
 
+export interface CsvParseResult {
+  activities: ActivityEntity[];
+  skipped: number;
+  parseErrors: string[];
+}
+
+function parseCsvRowsInternal(csvText: string): { rows: string[][]; skipped: number; errors: string[] } {
+  const rows: string[][] = [];
+  let currentTokens: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < csvText.length) {
+    const ch = csvText[i];
+    if (ch === '"') {
+      if (inQuotes && i + 1 < csvText.length && csvText[i + 1] === '"') {
+        currentField += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      currentTokens.push(currentField.trim().replace(/^"|"$/g, ''));
+      currentField = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && i + 1 < csvText.length && csvText[i + 1] === '\n') {
+        i++;
+      }
+      currentTokens.push(currentField.trim().replace(/^"|"$/g, ''));
+      currentField = '';
+      if (currentTokens.some((t) => t.trim() !== '')) {
+        rows.push([...currentTokens]);
+      }
+      currentTokens = [];
+    } else {
+      currentField += ch;
+    }
+    i++;
+  }
+
+  if (currentField.length > 0 || currentTokens.length > 0) {
+    currentTokens.push(currentField.trim().replace(/^"|"$/g, ''));
+    if (currentTokens.some((t) => t.trim() !== '')) {
+      rows.push(currentTokens);
+    }
+  }
+
+  return { rows, skipped: 0, errors: [] };
+}
+
 export class StravaCsvParser {
   static isCyclingType(typeStr: string = '', nameStr: string = ''): boolean {
     const typeLower = typeStr.toLowerCase().trim();
@@ -45,8 +96,13 @@ export class StravaCsvParser {
   }
 
   static parseCsv(csvText: string): ActivityEntity[] {
-    const rows = this.parseCsvRows(csvText);
-    if (rows.length === 0) return [];
+    return StravaCsvParser.parseCsvDetailed(csvText).activities;
+  }
+
+  static parseCsvDetailed(csvText: string): CsvParseResult {
+    const { rows, errors } = parseCsvRowsInternal(csvText);
+    let skipped = 0;
+    if (rows.length === 0) return { activities: [], skipped, parseErrors: [] };
 
     const headerTokens = rows[0].map((h) => h.toLowerCase().trim());
 
@@ -74,7 +130,7 @@ export class StravaCsvParser {
       'intensity',
     ]);
 
-    const result: ActivityEntity[] = [];
+    const activities: ActivityEntity[] = [];
 
     for (let i = 1; i < rows.length; i++) {
       const tokens = rows[i];
@@ -85,13 +141,17 @@ export class StravaCsvParser {
 
       // Only parse cycle rides
       if (!this.isCyclingType(rawType, rawName)) {
+        skipped++;
         continue;
       }
 
       const rawDatePrimary = this.getValue(tokens, dateIdx);
       const rawDateSecondary = this.getValue(tokens, startTimeIdx);
       const dateMillis = this.parseDate(rawDatePrimary) ?? this.parseDate(rawDateSecondary);
-      if (!dateMillis) continue;
+      if (!dateMillis) {
+        skipped++;
+        continue;
+      }
 
       const name = rawName.trim() || (rawType.trim() ? rawType.trim() : 'Cycling Ride');
       const type = this.normalizeActivityType(rawType.trim() || 'Ride');
@@ -112,7 +172,7 @@ export class StravaCsvParser {
       const tss = this.parseDoubleNull(this.getValue(tokens, tssIdx));
       const actId = this.getValue(tokens, idIdx) || null;
 
-      result.push({
+      activities.push({
         id: Date.now() * 1000 + i * 10 + Math.floor(Math.random() * 1000),
         stravaActivityId: actId,
         dateMillis,
@@ -133,7 +193,7 @@ export class StravaCsvParser {
       });
     }
 
-    return result;
+    return { activities, skipped, parseErrors: errors };
   }
 
   private static parseCsvRows(csvText: string): string[][] {

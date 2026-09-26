@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, CheckCircle2, AlertCircle, X, FolderOpen } from 'lucide-react';
-import { StravaCsvParser } from '../utils/stravaCsvParser';
+import { StravaCsvParser, CsvParseResult } from '../utils/stravaCsvParser';
 import { useTheme } from '../context/ThemeContext';
 
 interface ImportCsvDialogProps {
@@ -15,7 +15,11 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
   const { isDark } = useTheme();
   const [csvInput, setCsvInput] = useState('');
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [csvResult, setCsvResult] = useState<{ activities: number; skipped: number; error: string | null }>({
+    activities: 0,
+    skipped: 0,
+    error: null,
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showManualText, setShowManualText] = useState(false);
 
@@ -33,8 +37,12 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
       if (content && content.trim()) {
         setCsvInput(content);
         setSelectedFileName(file.name);
-        const parsed = StravaCsvParser.parseCsv(content);
-        setPreviewCount(parsed.length);
+        const result = StravaCsvParser.parseCsvDetailed(content);
+        setCsvResult({
+          activities: result.activities.length,
+          skipped: result.skipped,
+          error: result.parseErrors.join('; ') || null,
+        });
         setErrorMessage(null);
       } else {
         setErrorMessage('The selected file is empty.');
@@ -116,10 +124,21 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
         </label>
 
         {/* Preview Summary */}
-        {previewCount !== null && (
-          <div className="bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 rounded-xl p-3 flex items-center gap-2.5 text-xs text-cyan-700 dark:text-cyan-300 font-semibold">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-cyan-600 dark:text-cyan-400" />
-            <span>Found {previewCount} cycle rides ready for import</span>
+        {csvResult.activities > 0 && (
+          <div className={`rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold ${csvResult.activities === 0 ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300' : 'bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300'}`}>
+            {csvResult.activities === 0 ? (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-cyan-600 dark:text-cyan-400" />
+            )}
+            <span>{csvResult.activities} cycle ride{csvResult.activities === 1 ? '' : 's'} ready for import</span>
+          </div>
+        )}
+
+        {/* Skipped rows (silent drops) */}
+        {csvResult.skipped !== null && csvResult.skipped > 0 && (
+          <div className="text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}">
+            {csvResult.skipped} row{csvResult.skipped === 1 ? ' was' : 's were'} skipped (not cycle rides, or unparseable date)
           </div>
         )}
 
@@ -150,9 +169,14 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
                 setCsvInput(text);
                 setSelectedFileName('Pasted CSV Text');
                 if (text.trim()) {
-                  setPreviewCount(StravaCsvParser.parseCsv(text).length);
+                  const result = StravaCsvParser.parseCsvDetailed(text);
+                  setCsvResult({
+                    activities: result.activities.length,
+                    skipped: result.skipped,
+                    error: result.parseErrors.join('; ') || null,
+                  });
                 } else {
-                  setPreviewCount(null);
+                  setCsvResult({ activities: 0, skipped: 0, error: null });
                 }
               }}
               placeholder="Activity ID,Activity Date,Activity Name,Activity Type,Moving Time,Distance..."
@@ -177,16 +201,16 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
 
           <button
             data-testid="confirm_import_btn"
-            disabled={!csvInput.trim()}
+            disabled={!csvInput.trim() || csvResult.activities === 0}
             onClick={() => {
-              if (csvInput.trim()) {
+              if (csvInput.trim() && csvResult.activities > 0) {
                 onImport(csvInput);
                 onDismiss();
               }
             }}
             className="px-4 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 rounded-xl shadow-sm transition-all"
           >
-            Import Dataset
+            Import Dataset ({csvResult.activities > 0 ? csvResult.activities : 0} activities)
           </button>
         </div>
       </div>
