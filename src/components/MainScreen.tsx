@@ -29,7 +29,6 @@ import { ActivityListItem } from './ActivityListItem';
 import { MetricsSummaryCards } from './MetricsSummaryCards';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CalendarPage } from './pages/calendar/CalendarPage';
-import { HomePage } from './pages/home/HomePage';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { AddWorkoutDialog } from './AddWorkoutDialog';
@@ -425,16 +424,6 @@ export const MainScreen: React.FC = () => {
 
 
           </div>
-
-          {activePage === 'home' && (
-            <HomePage
-              summary={pmcSummary}
-              activities={activities}
-              userName={displayName}
-              onAddWorkoutClick={() => setShowAddWorkoutDialog(true)}
-              onImportClick={() => setShowImportDialog(true)}
-            />
-          )}
 
           {activePage === 'calendar' && (
             <CalendarPage

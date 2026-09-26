@@ -1,8 +1,8 @@
 import React from 'react';
-import { CalendarDays, Home, LayoutDashboard, LogOut, RefreshCw, Sun, Moon } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, LogOut, RefreshCw, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
-export type PageId = 'home' | 'calendar' | 'dashboard';
+export type PageId = 'calendar' | 'dashboard';
 
 interface TopNavProps {
   activePage: PageId;
@@ -17,7 +17,6 @@ interface TopNavProps {
 }
 
 const NAV_ITEMS: { id: PageId; label: string; icon: React.ElementType }[] = [
-  { id: 'home', label: 'Home', icon: Home },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
