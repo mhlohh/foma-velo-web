@@ -3,6 +3,7 @@ import { Heart, Zap, X } from 'lucide-react';
 import { UserSettings } from '../types';
 import { PmcEngine } from '../utils/pmcEngine';
 import { useTheme } from '../context/ThemeContext';
+import { readableText } from '../utils/contrastText';
 
 interface TrainingZonesSheetProps {
   settings: UserSettings;
@@ -70,7 +71,7 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="font-bold font-mono" style={{ color: zone.colorHex }}>
+                <span className="font-bold font-mono" style={{ color: readableText(zone.colorHex, isDark) }}>
                   {zone.rangeWatts}
                 </span>
               </div>
@@ -105,7 +106,7 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="font-bold font-mono" style={{ color: zone.colorHex }}>
+                <span className="font-bold font-mono" style={{ color: readableText(zone.colorHex, isDark) }}>
                   {zone.rangeBpm}
                 </span>
               </div>

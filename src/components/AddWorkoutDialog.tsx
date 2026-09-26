@@ -14,13 +14,12 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
 }) => {
   const { isDark } = useTheme();
 
-  // 'manual' = logged completed activity with manual TSS; 'planned' = future workout
   const [entryMode, setEntryMode] = useState<'manual' | 'planned'>('manual');
 
   const [title, setTitle] = useState('');
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  const [dayOffset, setDayOffset] = useState('2'); // for quick planned offset
+  const [dayOffset, setDayOffset] = useState('2');
   const [type, setType] = useState('Ride');
   const [durationMins, setDurationMins] = useState('60');
   const [tssText, setTssText] = useState('75');
@@ -29,6 +28,10 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
   const [avgWatts, setAvgWatts] = useState('');
   const [avgHr, setAvgHr] = useState('');
   const [notes, setNotes] = useState('');
+
+  const inputCls = `w-full border rounded-md px-3 py-2 text-xs focus:outline-none focus:border-[#2f6fe4] ${
+    isDark ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+  }`;
 
   const handleCreate = () => {
     if (!title.trim()) return;
@@ -48,7 +51,6 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
         const [y, m, d] = selectedDate.split('-').map((n) => parseInt(n, 10));
         const dt = new Date(y, m - 1, d, 12, 0, 0);
         dateMillis = dt.getTime();
-        // If date is strictly in the future
         const nowZero = new Date();
         nowZero.setHours(23, 59, 59, 999);
         if (dateMillis > nowZero.getTime()) {
@@ -96,17 +98,13 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
       data-testid="add_workout_dialog"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
     >
-      <div className={`border rounded-3xl p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
+      <div className={`border rounded-xl p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
         isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-              entryMode === 'manual'
-                ? isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-50 text-cyan-600'
-                : isDark ? 'bg-purple-950 text-purple-400' : 'bg-purple-50 text-purple-600'
-            }`}>
+            <div className="w-10 h-10 rounded-lg bg-[#eef3fd] text-[#2f6fe4] dark:bg-[#eef3fd]/10 dark:text-[#5b8def] flex items-center justify-center">
               {entryMode === 'manual' ? <Zap className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
             </div>
             <div>
@@ -129,16 +127,16 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
         </div>
 
         {/* Mode Selector Tabs */}
-        <div className={`grid grid-cols-2 gap-1 p-1 rounded-xl border ${
+        <div className={`grid grid-cols-2 gap-1 p-1 rounded-lg border ${
           isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-100 border-slate-200'
         }`}>
           <button
             type="button"
             data-testid="mode_tab_manual"
             onClick={() => setEntryMode('manual')}
-            className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 ${
               entryMode === 'manual'
-                ? 'bg-cyan-600 text-white shadow-sm'
+                ? 'bg-[#2f6fe4] text-white shadow-sm'
                 : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -149,9 +147,9 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
             type="button"
             data-testid="mode_tab_planned"
             onClick={() => setEntryMode('planned')}
-            className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 ${
               entryMode === 'planned'
-                ? 'bg-purple-600 text-white shadow-sm'
+                ? 'bg-[#2f6fe4] text-white shadow-sm'
                 : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -172,9 +170,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={entryMode === 'manual' ? 'e.g. Afternoon Endurance Ride' : 'e.g. 4x8m VO2Max Intervals'}
-              className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-cyan-600'
-              }`}
+              className={inputCls}
             />
           </div>
 
@@ -189,18 +185,14 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
+                  className={inputCls}
                 />
               ) : (
                 <select
                   data-testid="workout_offset_select"
                   value={dayOffset}
                   onChange={(e) => setDayOffset(e.target.value)}
-                  className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
+                  className={inputCls}
                 >
                   <option value="0">Today</option>
                   <option value="1">Tomorrow (+1d)</option>
@@ -221,9 +213,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                 data-testid="workout_type_select"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
-                  isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
+                className={inputCls}
               >
                 <option value="Ride">Outdoor Ride</option>
                 <option value="VirtualRide">Virtual / Zwift</option>
@@ -248,9 +238,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                 value={tssText}
                 onChange={(e) => setTssText(e.target.value)}
                 placeholder="e.g. 85"
-                className={`w-full border rounded-xl px-3 py-2 text-xs font-bold text-cyan-600 dark:text-cyan-400 focus:outline-none ${
-                  isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-300'
-                }`}
+                className={`${inputCls} font-bold text-[#2f6fe4]`}
               />
             </div>
 
@@ -264,9 +252,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                 min="1"
                 value={durationMins}
                 onChange={(e) => setDurationMins(e.target.value)}
-                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none ${
-                  isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
+                className={inputCls}
               />
             </div>
           </div>
@@ -284,9 +270,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={distanceKm}
                   onChange={(e) => setDistanceKm(e.target.value)}
                   placeholder="e.g. 45"
-                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs focus:outline-none ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
+                  className={inputCls}
                 />
               </div>
 
@@ -299,9 +283,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={avgWatts}
                   onChange={(e) => setAvgWatts(e.target.value)}
                   placeholder="e.g. 210"
-                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs focus:outline-none ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
+                  className={inputCls}
                 />
               </div>
 
@@ -314,9 +296,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={avgHr}
                   onChange={(e) => setAvgHr(e.target.value)}
                   placeholder="e.g. 152"
-                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs focus:outline-none ${
-                    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
+                  className={inputCls}
                 />
               </div>
             </div>
@@ -331,9 +311,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. Felt strong during hill repeats..."
-              className={`w-full border rounded-xl p-2.5 text-xs h-16 focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-cyan-600'
-              }`}
+              className={`${inputCls} h-16 p-2.5`}
             />
           </div>
         </div>
@@ -343,7 +321,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
           <button
             data-testid="cancel_workout_btn"
             onClick={onDismiss}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl border ${
+            className={`px-4 py-2 text-xs font-semibold rounded-lg border ${
               isDark ? 'text-slate-300 border-slate-700 hover:bg-slate-700' : 'text-slate-700 border-slate-300 hover:bg-slate-100'
             }`}
           >
@@ -354,11 +332,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
             data-testid="confirm_add_workout_btn"
             disabled={!title.trim()}
             onClick={handleCreate}
-            className={`px-4 py-2 text-xs font-bold text-white rounded-xl shadow-sm transition-all flex items-center gap-1 disabled:opacity-50 ${
-              entryMode === 'manual'
-                ? 'bg-cyan-600 hover:bg-cyan-700'
-                : 'bg-purple-600 hover:bg-purple-700'
-            }`}
+            className="px-4 py-2 text-xs font-bold text-white bg-[#2f6fe4] hover:bg-[#245cc4] rounded-lg transition-all flex items-center gap-1 disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             {entryMode === 'manual' ? 'Save Manual Entry' : 'Schedule Workout'}

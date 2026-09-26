@@ -1,4 +1,35 @@
+# ---- Environment / secrets (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+
+# ---- Dependencies ----
+node_modules
+
+# ---- Build output ----
+dist
+build
+/build
+.vite
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
 *.iml
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Android / legacy boilerplate (pre-existing) ----
 .gradle
 .kotlin
 /local.properties
@@ -8,11 +39,7 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
-.DS_Store
-/build
 /captures
 .externalNativeBuild
 .cxx
-local.properties
-.env
 debug.keystore

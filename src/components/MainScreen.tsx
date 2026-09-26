@@ -1,50 +1,36 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import {
-  Activity,
-  Calendar,
-  Plus,
-  RotateCcw,
-  Settings,
-  Sparkles,
-  Upload,
-  Zap,
-} from 'lucide-react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import {
-  ActivityEntity,
-  CalculationMode,
-  DailyPmcData,
-  UserSettings,
-} from '../types';
+import { Plus, RotateCcw, Settings, Sparkles, Upload, Zap, Calendar } from 'lucide-react';
+import { Session } from '@supabase/supabase-js';
+import { ActivityEntity, CalculationMode, DailyPmcData, UserSettings } from '../types';
 import { PmcEngine } from '../utils/pmcEngine';
 import { StravaCsvParser } from '../utils/stravaCsvParser';
 import { generatePresetSampleData } from '../utils/sampleData';
-import {
-  loadStoredActivities,
-  saveStoredActivities,
-  loadStoredSettings,
-  saveStoredSettings,
-} from '../utils/storage';
+import { loadStoredActivities, saveStoredActivities, loadStoredSettings, saveStoredSettings } from '../utils/storage';
 
-import { auth, testFirestoreConnection } from '../lib/firebase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
-  subscribeToUserActivities,
-  subscribeToUserSettings,
-  saveActivityToFirestore,
-  saveBatchActivitiesToFirestore,
-  deleteActivityFromFirestore,
-  clearAllActivitiesFromFirestore,
-  saveUserSettingsToFirestore,
-} from '../lib/firestoreService';
+  fetchActivities,
+  fetchUserSettings,
+  subscribeToActivities,
+  subscribeToSettings,
+  upsertActivity,
+  upsertActivities,
+  deleteActivity as deleteActivityRemote,
+  deleteActivities as deleteActivitiesRemote,
+  deleteAllActivities,
+  saveUserSettings,
+} from '../lib/supabaseService';
 
 import { useTheme } from '../context/ThemeContext';
-import { AuthBar } from './AuthBar';
-import { LoginScreen } from './LoginScreen';
+import { TopNav, PageId } from './layout/TopNav';
+import { SideRail, RailTool } from './layout/SideRail';
+import { LoginPage } from './pages/LoginPage';
+import { ActivityListItem } from './ActivityListItem';
 import { ThresholdAndDataSetup } from './ThresholdAndDataSetup';
 import { MetricsSummaryCards } from './MetricsSummaryCards';
-import { PmcChart } from './PmcChart';
-import { FilterHeader } from './FilterHeader';
-import { ActivityListItem } from './ActivityListItem';
+import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { CalendarPage } from './pages/calendar/CalendarPage';
+import { HomePage } from './pages/home/HomePage';
 import { ImportCsvDialog } from './ImportCsvDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { AddWorkoutDialog } from './AddWorkoutDialog';
@@ -54,11 +40,11 @@ import { AiTrainingAnalysisModal } from './AiTrainingAnalysisModal';
 
 export const MainScreen: React.FC = () => {
   const { isDark } = useTheme();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const [session, setSession] = useState<Session | null>(null);
   const [authInitialized, setAuthInitialized] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
-  // Track if threshold setup & data configuration has been confirmed
   const [hasConfiguredThresholds, setHasConfiguredThresholds] = useState<boolean>(() => {
     return localStorage.getItem('foma_velo_setup_done') === 'true';
   });
@@ -66,17 +52,20 @@ export const MainScreen: React.FC = () => {
   const [activities, setActivities] = useState<ActivityEntity[]>(() => loadStoredActivities());
   const [settings, setSettings] = useState<UserSettings>(() => loadStoredSettings());
 
-  // Filter state
+  // Navigation state
+  const [activePage, setActivePage] = useState<PageId>('dashboard');
+  const [activeTool, setActiveTool] = useState<RailTool>('charts');
+
+  // Filters (dashboard list)
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [selectedHorizonDays, setSelectedHorizonDays] = useState<number>(90);
+  const [horizonDays, setHorizonDays] = useState<number>(90);
   const [includePlanned, setIncludePlanned] = useState<boolean>(true);
   const [sourceFilter, setSourceFilter] = useState<'all' | 'strava' | 'manual' | 'planned'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Selected Day on PMC Chart
   const [selectedDay, setSelectedDay] = useState<DailyPmcData | null>(null);
 
-  // Dialog Visibility
+  // Dialogs
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAddWorkoutDialog, setShowAddWorkoutDialog] = useState(false);
@@ -84,21 +73,27 @@ export const MainScreen: React.FC = () => {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
 
-  // Monitor auth state changes
+  // ---------------------------------------------------------------
+  // Supabase auth bootstrap
+  // ---------------------------------------------------------------
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+    if (!supabase) {
+      setAuthInitialized(true);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
       setAuthInitialized(true);
     });
-    return () => unsub();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Test connection on mount
-  useEffect(() => {
-    testFirestoreConnection();
-  }, []);
-
-  // Save changes to localStorage as secondary backup
+  // localStorage backup
   useEffect(() => {
     saveStoredActivities(activities);
   }, [activities]);
@@ -107,65 +102,99 @@ export const MainScreen: React.FC = () => {
     saveStoredSettings(settings);
   }, [settings]);
 
-  // Handle Firebase Real-time Synchronization when user is authenticated
+  // Realtime sync when authenticated
   useEffect(() => {
-    if (!currentUser) return;
+    if (!session?.user) return;
+    const userId = session.user.id;
 
+    let cancelled = false;
     setIsSyncing(true);
 
-    // 1. Subscribe to User Activities
-    const unsubActivities = subscribeToUserActivities(
-      currentUser.uid,
-      (firestoreActivities) => {
-        if (firestoreActivities.length > 0) {
-          setActivities(firestoreActivities);
+    const loadInitial = async () => {
+      try {
+        const [remoteActivities, remoteSettings] = await Promise.all([
+          fetchActivities(userId),
+          fetchUserSettings(userId),
+        ]);
+        if (cancelled) return;
+
+        if (remoteActivities.length > 0) {
+          setActivities(remoteActivities);
           setHasConfiguredThresholds(true);
           localStorage.setItem('foma_velo_setup_done', 'true');
         } else if (activities.length > 0) {
-          saveBatchActivitiesToFirestore(currentUser.uid, activities);
+          // First login: push local data up
+          await upsertActivities(userId, activities);
         }
-        setIsSyncing(false);
-      },
-      () => setIsSyncing(false)
-    );
 
-    // 2. Subscribe to User Settings
-    const unsubSettings = subscribeToUserSettings(
-      currentUser.uid,
-      (firestoreSettings) => {
-        if (firestoreSettings) {
-          setSettings(firestoreSettings);
+        if (remoteSettings) {
+          setSettings(remoteSettings);
           setHasConfiguredThresholds(true);
           localStorage.setItem('foma_velo_setup_done', 'true');
         }
-      },
-      () => setIsSyncing(false)
-    );
+      } catch (err) {
+        console.error('Initial Supabase sync failed:', err);
+      } finally {
+        if (!cancelled) setIsSyncing(false);
+      }
+    };
+
+    loadInitial();
+
+    const unsubActivities = subscribeToActivities(userId, (remote) => {
+      if (remote.length > 0) {
+        setActivities(remote);
+      } else {
+        setActivities((prev) => {
+          if (prev.length > 0) {
+            upsertActivities(userId, prev).catch(() => {});
+          }
+          return prev;
+        });
+      }
+    });
+
+    const unsubSettings = subscribeToSettings(userId, (remoteSettings) => {
+      if (remoteSettings) {
+        setSettings(remoteSettings);
+        setHasConfiguredThresholds(true);
+        localStorage.setItem('foma_velo_setup_done', 'true');
+      }
+    });
 
     return () => {
-      if (unsubActivities) unsubActivities();
-      if (unsubSettings) unsubSettings();
+      cancelled = true;
+      unsubActivities();
+      unsubSettings();
     };
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
-  // Setup completion handler from ThresholdAndDataSetup
-  const handleSetupComplete = async (updatedSettings: UserSettings, initialActivities: ActivityEntity[]) => {
+  // ---------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------
+  const handleSetupComplete = async (
+    updatedSettings: UserSettings,
+    initialActivities: ActivityEntity[]
+  ) => {
     setSettings(updatedSettings);
     setActivities(initialActivities);
     setHasConfiguredThresholds(true);
     localStorage.setItem('foma_velo_setup_done', 'true');
 
-    if (currentUser) {
+    if (session?.user) {
       setIsSyncing(true);
-      await saveUserSettingsToFirestore(currentUser.uid, updatedSettings);
-      if (initialActivities.length > 0) {
-        await saveBatchActivitiesToFirestore(currentUser.uid, initialActivities);
+      try {
+        await saveUserSettings(session.user.id, updatedSettings, true);
+        if (initialActivities.length > 0) {
+          await upsertActivities(session.user.id, initialActivities);
+        }
+      } finally {
+        setIsSyncing(false);
       }
-      setIsSyncing(false);
     }
   };
 
-  // Compute available activity types
   const availableTypes = useMemo(() => {
     const set = new Set<string>();
     activities.forEach((act) => {
@@ -174,16 +203,12 @@ export const MainScreen: React.FC = () => {
     return Array.from(set).sort();
   }, [activities]);
 
-  // Filter activities for PMC Engine and list
   const filteredActivities = useMemo(() => {
     return activities.filter((act) => {
       if (!includePlanned && act.isPlanned) return false;
-
-      // Source Filter
       if (sourceFilter === 'strava' && !act.stravaActivityId) return false;
       if (sourceFilter === 'manual' && (!act.isManual && (act.stravaActivityId || act.isPlanned))) return false;
       if (sourceFilter === 'planned' && !act.isPlanned) return false;
-
       if (selectedType && act.type.toLowerCase() !== selectedType.toLowerCase()) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -195,108 +220,119 @@ export const MainScreen: React.FC = () => {
     });
   }, [activities, includePlanned, sourceFilter, selectedType, searchQuery]);
 
-  // Compute PMC Summary
   const pmcSummary = useMemo(() => {
     return PmcEngine.computePmc(filteredActivities, settings, 30);
   }, [filteredActivities, settings]);
 
-  // Sorted activities list for display
   const displayActivityList = useMemo(() => {
     return [...filteredActivities].sort((a, b) => b.dateMillis - a.dateMillis);
   }, [filteredActivities]);
 
-  // Handlers with Firestore integration
   const handleImportCsv = async (csvText: string) => {
     const imported = StravaCsvParser.parseCsv(csvText);
     if (imported.length > 0) {
       setActivities(imported);
-      if (currentUser) {
+      if (session?.user) {
         setIsSyncing(true);
-        await saveBatchActivitiesToFirestore(currentUser.uid, imported);
-        setIsSyncing(false);
+        try {
+          await upsertActivities(session.user.id, imported);
+        } finally {
+          setIsSyncing(false);
+        }
       }
     }
   };
 
   const handleAddWorkout = async (workout: ActivityEntity) => {
     setActivities((prev) => [workout, ...prev]);
-    if (currentUser) {
+    if (session?.user) {
       setIsSyncing(true);
-      await saveActivityToFirestore(currentUser.uid, workout);
-      setIsSyncing(false);
+      try {
+        await upsertActivity(session.user.id, workout);
+      } finally {
+        setIsSyncing(false);
+      }
     }
   };
 
   const handleDeleteActivity = async (id: number) => {
     setActivities((prev) => prev.filter((act) => act.id !== id));
-    if (currentUser) {
+    if (session?.user) {
       setIsSyncing(true);
-      await deleteActivityFromFirestore(currentUser.uid, id);
-      setIsSyncing(false);
+      try {
+        await deleteActivityRemote(session.user.id, id);
+      } finally {
+        setIsSyncing(false);
+      }
     }
   };
 
   const handleClearAll = async () => {
-    const previous = [...activities];
     setActivities([]);
-    if (currentUser) {
+    if (session?.user) {
       setIsSyncing(true);
-      await clearAllActivitiesFromFirestore(currentUser.uid, previous);
-      setIsSyncing(false);
+      try {
+        await deleteAllActivities(session.user.id);
+      } finally {
+        setIsSyncing(false);
+      }
     }
   };
 
   const handleDeleteManualOnly = async () => {
-    const manualAndPlannedIds = activities
+    const ids = activities
       .filter((act) => act.isManual || act.isPlanned || !act.stravaActivityId)
       .map((act) => act.id);
-
-    setActivities((prev) => prev.filter((act) => !manualAndPlannedIds.includes(act.id)));
-
-    if (currentUser) {
+    setActivities((prev) => prev.filter((act) => !ids.includes(act.id)));
+    if (session?.user) {
       setIsSyncing(true);
-      for (const id of manualAndPlannedIds) {
-        await deleteActivityFromFirestore(currentUser.uid, id);
+      try {
+        await deleteActivitiesRemote(session.user.id, ids);
+      } finally {
+        setIsSyncing(false);
       }
-      setIsSyncing(false);
     }
   };
 
   const handleResetSample = async () => {
     const sample = generatePresetSampleData();
     setActivities(sample);
-    if (currentUser) {
+    if (session?.user) {
       setIsSyncing(true);
-      await saveBatchActivitiesToFirestore(currentUser.uid, sample);
-      setIsSyncing(false);
+      try {
+        await upsertActivities(session.user.id, sample);
+      } finally {
+        setIsSyncing(false);
+      }
     }
   };
 
   const handleModeChanged = async (mode: CalculationMode) => {
     const updated = { ...settings, calculationMode: mode };
     setSettings(updated);
-    if (currentUser) {
-      await saveUserSettingsToFirestore(currentUser.uid, updated);
+    if (session?.user) {
+      await saveUserSettings(session.user.id, updated, true);
     }
   };
 
   const handleSaveSettings = async (newSettings: UserSettings) => {
     setSettings(newSettings);
-    if (currentUser) {
-      await saveUserSettingsToFirestore(currentUser.uid, newSettings);
+    if (session?.user) {
+      await saveUserSettings(session.user.id, newSettings, true);
     }
   };
 
-  const handleUserChanged = useCallback((user: User | null) => {
-    setCurrentUser(user);
-    if (!user) {
-      // If user logs out, reset setup status for next user
-      setHasConfiguredThresholds(false);
-      localStorage.removeItem('foma_velo_setup_done');
-    }
+  const handleSignOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setSession(null);
+    setHasConfiguredThresholds(false);
+    localStorage.removeItem('foma_velo_setup_done');
   }, []);
 
-  // 1. Unauthenticated Gate
+  // ---------------------------------------------------------------
+  // Render gates
+  // ---------------------------------------------------------------
   if (!authInitialized) {
     return (
       <div className={`min-h-screen flex items-center justify-center text-xs font-medium ${
@@ -307,15 +343,33 @@ export const MainScreen: React.FC = () => {
     );
   }
 
-  if (!currentUser) {
-    return <LoginScreen />;
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-800 p-6">
+        <div className="max-w-md border border-amber-300 bg-amber-50 rounded-xl p-6 text-center space-y-3">
+          <h1 className="text-lg font-bold text-amber-800">Supabase not configured</h1>
+          <p className="text-xs text-amber-700 leading-relaxed">
+            Add <code className="font-mono">VITE_SUPABASE_URL</code> and{' '}
+            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code> to your <code className="font-mono">.env</code> file,
+            then restart the dev server. See <strong>MIGRATION.md</strong> for the full setup guide.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  // 2. Threshold Settings & Data Setup Gate (if not yet configured)
+  if (!session) {
+    return <LoginPage />;
+  }
+
   if (!hasConfiguredThresholds) {
     return (
       <ThresholdAndDataSetup
-        currentUser={currentUser}
+        currentUser={{
+          displayName: session.user.user_metadata?.['full_name'] ?? session.user.user_metadata?.['name'] ?? null,
+          email: session.user.email ?? null,
+          avatarUrl: session.user.user_metadata?.['avatar_url'] ?? session.user.user_metadata?.['picture'] ?? null,
+        }}
         currentSettings={settings}
         currentActivities={activities}
         onComplete={handleSetupComplete}
@@ -323,220 +377,206 @@ export const MainScreen: React.FC = () => {
     );
   }
 
-  // 3. Full PMC Dashboard (Unlocked after login + threshold setup)
+  const user = session.user;
+  const displayName: string | null =
+    user.user_metadata?.['full_name'] ?? user.user_metadata?.['name'] ?? user.email?.split('@')[0] ?? null;
+  const avatarUrl: string | null = user.user_metadata?.['avatar_url'] ?? user.user_metadata?.['picture'] ?? null;
+
   return (
     <div className={`min-h-screen flex flex-col transition-colors ${
       isDark ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
-      {/* Top Navigation Header */}
-      <header className={`sticky top-0 z-30 border-b px-4 py-3 transition-colors ${
-        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200 shadow-sm'
-      }`}>
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Branding Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-600 flex items-center justify-center text-white shadow-sm">
-              <Activity className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2">
-                Foma Velo
-                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
-                  isDark ? 'bg-cyan-950 text-cyan-400 border-cyan-800' : 'bg-cyan-50 text-cyan-700 border-cyan-200'
-                }`}>
-                  PMC 2.0
-                </span>
-              </h1>
-              <p className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Cycling PMC & Strava Dataset Analytics
-              </p>
-            </div>
-          </div>
+      <TopNav
+        activePage={activePage}
+        onNavigate={(page) => {
+          setActivePage(page);
+          if (page !== 'dashboard') setActiveTool('charts');
+        }}
+        user={{ displayName, email: user.email, avatarUrl }}
+        isSyncing={isSyncing}
+        onSignOut={handleSignOut}
+      />
 
-          {/* Right Header Controls & Auth */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <AuthBar onUserChanged={handleUserChanged} isSyncing={isSyncing} />
+      <div className="flex flex-1 flex-col lg:flex-row lg:min-h-0">
+        <SideRail activeTool={activeTool} onToolChange={setActiveTool} />
 
-            <div className={`h-6 w-[1px] hidden sm:block mx-1 ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
-
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <button
-                data-testid="ai_coach_btn"
-                onClick={() => setShowAiAnalysisModal(true)}
-                className="p-2 sm:px-3 sm:py-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
-                title="AI Training Coach & Analysis"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">AI Coach</span>
-              </button>
-
-              <button
-                data-testid="btn_training_zones"
-                onClick={() => setShowZonesSheet(true)}
-                className={`p-2 sm:px-3 sm:py-1.5 border rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
-                }`}
-                title="Training Zones"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span className="hidden sm:inline">Zones</span>
-              </button>
-
-              <button
-                data-testid="import_csv_btn"
-                onClick={() => setShowImportDialog(true)}
-                className={`p-2 sm:px-3 sm:py-1.5 border rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
-                }`}
-                title="Import Strava CSV"
-              >
-                <Upload className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                <span className="hidden sm:inline">Import CSV</span>
-              </button>
-
-              <button
-                data-testid="add_workout_btn"
-                onClick={() => setShowAddWorkoutDialog(true)}
-                className="p-2 sm:px-3 sm:py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
-                title="Plan Workout"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Plan Workout</span>
-              </button>
-
-              <button
-                data-testid="settings_btn"
-                onClick={() => setShowSettingsDialog(true)}
-                className={`p-2 border rounded-xl transition-all ${
-                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
-                }`}
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
-              <button
-                data-testid="clear_dataset_btn"
-                onClick={() => setShowClearDialog(true)}
-                className={`p-2 border rounded-xl transition-all ${
-                  isDark
-                    ? 'bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border-slate-700'
-                    : 'bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border-slate-200 shadow-sm'
-                }`}
-                title="Clear or Reset Dataset"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+        {/* Mobile tool tabs (SideRail replacement) */}
+        <div className="lg:hidden border-b w-full px-4 py-2 flex gap-2 overflow-x-auto">
+          {(['charts', 'workouts', 'routes', 'plans'] as RailTool[]).map((tool) => (
+            <button
+              key={tool}
+              onClick={() => setActiveTool(tool)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap capitalize ${
+                activeTool === tool ? 'bg-[#2f6fe4] text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              }`}
+            >
+              {tool}
+            </button>
+          ))}
         </div>
-      </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 space-y-4">
-        {/* Top PMC Metrics Cards */}
-        <MetricsSummaryCards
-          summary={pmcSummary}
-          onOpenAiAnalysis={() => setShowAiAnalysisModal(true)}
-        />
-
-        {/* Interactive PMC Chart */}
-        <PmcChart
-          dailyList={pmcSummary.dailyList}
-          selectedDay={selectedDay}
-          horizonDays={selectedHorizonDays}
-          onDaySelected={setSelectedDay}
-        />
-
-        {/* Filter Header */}
-        <FilterHeader
-          settings={settings}
-          selectedType={selectedType}
-          selectedHorizonDays={selectedHorizonDays}
-          includePlanned={includePlanned}
-          sourceFilter={sourceFilter}
-          searchQuery={searchQuery}
-          availableTypes={availableTypes}
-          onModeChanged={handleModeChanged}
-          onTypeChanged={setSelectedType}
-          onHorizonChanged={setSelectedHorizonDays}
-          onIncludePlannedChanged={setIncludePlanned}
-          onSourceFilterChanged={setSourceFilter}
-          onSearchChanged={setSearchQuery}
-        />
-
-        {/* Activities List Section */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              Activity History & Planned Workouts ({displayActivityList.length})
-            </h3>
+        <main className="flex-1 min-w-0 p-3 sm:p-6 overflow-x-hidden">
+          {/* Quick action bar */}
+          <div className="flex items-center justify-end gap-2 mb-4 flex-wrap">
+            <button
+              data-testid="import_csv_btn"
+              onClick={() => setShowImportDialog(true)}
+              className="p-2 sm:px-3 sm:py-1.5 border rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-all"
+              title="Import Strava CSV"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#2f6fe4]" />
+              <span className="hidden sm:inline">Import CSV</span>
+            </button>
 
             <button
+              data-testid="add_workout_btn"
               onClick={() => setShowAddWorkoutDialog(true)}
-              className="text-xs text-purple-600 dark:text-purple-400 hover:underline font-semibold flex items-center gap-1"
+              className="p-2 sm:px-3 sm:py-1.5 bg-[#2f6fe4] hover:bg-[#245cc4] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+              title="Plan Workout"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Workout
+              <span className="hidden sm:inline">Plan Workout</span>
+            </button>
+
+            <button
+              data-testid="btn_training_zones"
+              onClick={() => setShowZonesSheet(true)}
+              className="p-2 sm:px-3 sm:py-1.5 border rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-all"
+              title="Training Zones"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Zones</span>
+            </button>
+
+            <button
+              data-testid="ai_coach_btn"
+              onClick={() => setShowAiAnalysisModal(true)}
+              className="p-2 sm:px-3 sm:py-1.5 bg-[#0c1c3d] hover:bg-[#12295a] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+              title="AI Training Coach & Analysis"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">AI Coach</span>
+            </button>
+
+            <button
+              data-testid="settings_btn"
+              onClick={() => setShowSettingsDialog(true)}
+              className="p-2 border rounded-lg bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-all"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            <button
+              data-testid="clear_dataset_btn"
+              onClick={() => setShowClearDialog(true)}
+              className="p-2 border rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 dark:bg-slate-800 dark:border-slate-700 transition-all"
+              title="Clear or Reset Dataset"
+            >
+              <RotateCcw className="w-4 h-4" />
             </button>
           </div>
 
-          {displayActivityList.length === 0 ? (
-            <div className={`border rounded-2xl p-8 text-center space-y-2 ${
-              isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <p className="text-sm font-semibold">No activities found</p>
-              <p className={`text-xs max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Try adjusting your search query, type filters, or import your Strava activities.csv dataset.
-              </p>
-              <div className="pt-2 flex justify-center gap-2">
-                <button
-                  onClick={() => setShowImportDialog(true)}
-                  className="px-3 py-1.5 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl"
-                >
-                  Import CSV
-                </button>
-                <button
-                  onClick={handleResetSample}
-                  className={`px-3 py-1.5 text-xs font-bold border rounded-xl ${
-                    isDark ? 'bg-slate-700 text-slate-200 border-slate-600' : 'bg-slate-100 text-slate-800 border-slate-300'
-                  }`}
-                >
-                  Load Sample Data
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {displayActivityList.map((activity, index) => (
-                <ActivityListItem
-                  key={`${activity.id}-${activity.dateMillis}-${index}`}
-                  activity={activity}
-                  settings={settings}
-                  onDelete={handleDeleteActivity}
-                />
-              ))}
-            </div>
+          {activePage === 'home' && (
+            <HomePage
+              summary={pmcSummary}
+              activities={activities}
+              userName={displayName}
+              onAddWorkoutClick={() => setShowAddWorkoutDialog(true)}
+              onImportClick={() => setShowImportDialog(true)}
+            />
           )}
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className={`border-t py-4 px-4 text-center text-xs ${
-        isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-500'
-      }`}>
-        Foma Velo Cycling Performance Management System • Form = CTL - ATL • Coggan & Friel Training Metrics
-      </footer>
+          {activePage === 'calendar' && (
+            <CalendarPage
+              activities={activities}
+              settings={settings}
+              onImportClick={() => setShowImportDialog(true)}
+            />
+          )}
+
+          {activePage === 'dashboard' && (
+            <>
+              <MetricsSummaryCards
+                summary={pmcSummary}
+                onOpenAiAnalysis={() => setShowAiAnalysisModal(true)}
+              />
+
+              <div className="mt-4">
+                <DashboardPage
+                  summary={pmcSummary}
+                  activities={activities}
+                  settings={settings}
+                  horizonDays={horizonDays}
+                  onHorizonChange={setHorizonDays}
+                  selectedDay={selectedDay}
+                  onDaySelected={setSelectedDay}
+                  onImportClick={() => setShowImportDialog(true)}
+                  onAiClick={() => setShowAiAnalysisModal(true)}
+                />
+              </div>
+
+              {/* Activity history */}
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="text-sm font-bold flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-[#2f6fe4]" />
+                    Activity History & Planned Workouts ({displayActivityList.length})
+                  </h3>
+                  <button
+                    onClick={() => setShowAddWorkoutDialog(true)}
+                    className={`text-xs hover:underline font-semibold flex items-center gap-1 transition-colors ${
+                      isDark ? 'text-[#7cabf5] hover:text-[#93c5fd]' : 'text-[#2f6fe4] hover:text-[#245cc4]'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Workout
+                  </button>
+                </div>
+
+                {displayActivityList.length === 0 ? (
+                  <div className="border rounded-lg p-8 text-center space-y-2 bg-white dark:bg-slate-800 dark:border-slate-700">
+                    <p className="text-sm font-semibold">No activities found</p>
+                    <p className={`text-xs max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Try adjusting your search query, type filters, or import your Strava activities.csv dataset.
+                    </p>
+                    <div className="pt-2 flex justify-center gap-2">
+                      <button
+                        onClick={() => setShowImportDialog(true)}
+                        className="px-3 py-1.5 text-xs font-bold text-white bg-[#2f6fe4] hover:bg-[#245cc4] rounded-lg"
+                      >
+                        Import CSV
+                      </button>
+                      <button
+                        onClick={handleResetSample}
+                        className="px-3 py-1.5 text-xs font-bold border rounded-lg bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
+                      >
+                        Load Sample Data
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {displayActivityList.map((activity, index) => (
+                      <ActivityListItem
+                        key={`${activity.id}-${activity.dateMillis}-${index}`}
+                        activity={activity}
+                        settings={settings}
+                        onDelete={handleDeleteActivity}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
 
       {/* Modals & Dialogs */}
       {showImportDialog && (
-        <ImportCsvDialog
-          onDismiss={() => setShowImportDialog(false)}
-          onImport={handleImportCsv}
-        />
+        <ImportCsvDialog onDismiss={() => setShowImportDialog(false)} onImport={handleImportCsv} />
       )}
-
       {showSettingsDialog && (
         <SettingsDialog
           currentSettings={settings}
@@ -544,21 +584,10 @@ export const MainScreen: React.FC = () => {
           onSave={handleSaveSettings}
         />
       )}
-
       {showAddWorkoutDialog && (
-        <AddWorkoutDialog
-          onDismiss={() => setShowAddWorkoutDialog(false)}
-          onAdd={handleAddWorkout}
-        />
+        <AddWorkoutDialog onDismiss={() => setShowAddWorkoutDialog(false)} onAdd={handleAddWorkout} />
       )}
-
-      {showZonesSheet && (
-        <TrainingZonesSheet
-          settings={settings}
-          onDismiss={() => setShowZonesSheet(false)}
-        />
-      )}
-
+      {showZonesSheet && <TrainingZonesSheet settings={settings} onDismiss={() => setShowZonesSheet(false)} />}
       {showClearDialog && (
         <ClearConfirmDialog
           onDismiss={() => setShowClearDialog(false)}
@@ -567,7 +596,6 @@ export const MainScreen: React.FC = () => {
           onResetSample={handleResetSample}
         />
       )}
-
       {showAiAnalysisModal && (
         <AiTrainingAnalysisModal
           isOpen={showAiAnalysisModal}

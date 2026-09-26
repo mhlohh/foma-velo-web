@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:client": "vite build",
     "start": "node dist/server.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",
+    "@supabase/supabase-js": "^2.117.2",
     "clsx": "^2.1.1",
     "express": "^5.2.1",
-    "firebase": "^12.19.0",
     "lucide-react": "^0.475.0",
     "motion": "^12.4.7",
     "react": "^18.3.1",

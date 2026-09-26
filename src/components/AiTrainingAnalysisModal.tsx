@@ -17,6 +17,7 @@ import Markdown from 'react-markdown';
 import { ActivityEntity, DailyPmcData, PmcSummary, UserSettings } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { PmcEngine } from '../utils/pmcEngine';
+import { readableText } from '../utils/contrastText';
 
 interface AiTrainingAnalysisModalProps {
   isOpen: boolean;
@@ -166,7 +167,7 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
         ftpWatts: settings.ftp,
         lthrBpm: settings.lthr,
         maxHeartRate: settings.maxHr,
-        restingHeartRate: settings.restHr,
+        restingHeartRate: 60,
         weightKg: settings.weightKg,
         calculationMode: settings.calculationMode,
       },
@@ -279,11 +280,11 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold tracking-tight">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-extrabold tracking-tight">
                   AI Training Intelligence & Physiological Coach
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                   Gemini AI
                 </span>
               </div>
@@ -320,7 +321,7 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
               </span>
               <span>
                 TSB (Form):{' '}
-                <strong style={{ color: summary.formStatus.colorHex }}>
+                <strong style={{ color: readableText(summary.formStatus.colorHex, isDark) }}>
                   {summary.currentTsb >= 0 ? `+${summary.currentTsb.toFixed(1)}` : summary.currentTsb.toFixed(1)}
                 </strong>
               </span>
@@ -340,7 +341,7 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: summary.formStatus.colorHex }}
               />
-              <span style={{ color: summary.formStatus.colorHex }}>{summary.formStatus.title}</span>
+              <span style={{ color: readableText(summary.formStatus.colorHex, isDark) }}>{summary.formStatus.title}</span>
             </div>
           </div>
         )}

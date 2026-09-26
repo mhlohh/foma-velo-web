@@ -1,0 +1,18 @@
+services:
+  foma-velo:
+    build:
+      context: .
+      args:
+        # Public client env — safe to bake into the image.
+        # Override with a .env file or shell env at build time.
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+    image: foma-velo:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Server-side secret — NOT baked into the client bundle.
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    restart: unless-stopped

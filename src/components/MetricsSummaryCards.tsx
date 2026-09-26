@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Gauge, Sparkles, Zap } from 'lucide-react';
 import { PmcSummary } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { readableText } from '../utils/contrastText';
 
 interface MetricsSummaryCardsProps {
   summary: PmcSummary | null;
@@ -26,33 +27,32 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
     formStatus,
   } = summary;
 
+  const cardCls = `border rounded-lg p-3 sm:p-4 transition-colors ${
+    isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm'
+  }`;
+
   return (
     <div className="w-full space-y-3">
       {/* Top 3 PMC Core Cards */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {/* Fitness (CTL) */}
-        <div
-          data-testid="metric_ctl_card"
-          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}
-        >
+        <div data-testid="metric_ctl_card" className={cardCls}>
           <div className="flex items-center justify-between">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-              isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-50 text-cyan-600'
-            }`}>
+            <div className="w-7 h-7 rounded-full bg-[#eef3fd] text-[#2f6fe4] flex items-center justify-center">
               <Activity className="w-4 h-4" />
             </div>
-            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               42-day load
             </span>
-          </div>
-          <div className="mt-2 sm:mt-3">
-            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Fitness (CTL)
-            </span>
+          </div>            <div className="mt-2 sm:mt-3">
+              <span className={`text-xs font-medium block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Fitness (CTL)
+              </span>
             <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-2xl font-extrabold text-cyan-600 dark:text-cyan-400">
+              <span
+                className="text-lg min-[420px]:text-xl sm:text-2xl font-extrabold tabular-nums"
+                style={{ color: readableText('#1d4ed8', isDark) }}
+              >
                 {currentCtl.toFixed(1)}
               </span>
               <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TSS/d</span>
@@ -61,61 +61,51 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
         </div>
 
         {/* Fatigue (ATL) */}
-        <div
-          data-testid="metric_atl_card"
-          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}
-        >
+        <div data-testid="metric_atl_card" className={cardCls}>
           <div className="flex items-center justify-between">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-              isDark ? 'bg-rose-950 text-rose-400' : 'bg-rose-50 text-rose-600'
-            }`}>
+            <div className="w-7 h-7 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 flex items-center justify-center">
               <Gauge className="w-4 h-4" />
             </div>
-            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               7-day load
             </span>
           </div>
           <div className="mt-2 sm:mt-3">
-            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span className={`text-xs font-medium block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Fatigue (ATL)
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-base sm:text-2xl font-extrabold text-rose-600 dark:text-rose-400">
-                {currentAtl.toFixed(1)}
-              </span>
+            </span>              <div className="flex items-baseline gap-1 mt-0.5">
+                <span
+                  className="text-lg min-[420px]:text-xl sm:text-2xl font-extrabold tabular-nums"
+                  style={{ color: readableText('#e11d48', isDark) }}
+                >
+                  {currentAtl.toFixed(1)}
+                </span>
               <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TSS/d</span>
             </div>
           </div>
         </div>
 
         {/* Form (TSB) */}
-        <div
-          data-testid="metric_tsb_card"
-          className={`border rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}
-        >
+        <div data-testid="metric_tsb_card" className={cardCls}>
           <div className="flex items-center justify-between">
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center"
               style={{ backgroundColor: `${formStatus.colorHex}20` }}
             >
-              <Zap className="w-4 h-4" style={{ color: formStatus.colorHex }} />
+              <Zap className="w-4 h-4" style={{ color: readableText(formStatus.colorHex, isDark) }} />
             </div>
-            <span className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Readiness
             </span>
           </div>
           <div className="mt-2 sm:mt-3">
-            <span className={`text-xs font-medium block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span className={`text-xs font-medium block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Form (TSB)
             </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span
-                className="text-base sm:text-2xl font-extrabold"
-                style={{ color: formStatus.colorHex }}
+                className="text-lg min-[420px]:text-xl sm:text-2xl font-extrabold tabular-nums"
+                style={{ color: readableText(formStatus.colorHex, isDark) }}
               >
                 {currentTsb >= 0 ? `+${currentTsb.toFixed(1)}` : currentTsb.toFixed(1)}
               </span>
@@ -128,32 +118,27 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
       {/* Form Readiness Banner Card */}
       <div
         data-testid="form_status_banner"
-        className={`w-full rounded-2xl p-3.5 sm:p-4 border shadow-sm transition-all ${
-          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200'
+        className={`w-full rounded-lg p-3.5 sm:p-4 border transition-all ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-white border-slate-200 shadow-sm'
         }`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      >          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div
-              className="w-2.5 h-2.5 rounded-full"
+              className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{ backgroundColor: formStatus.colorHex }}
             />
-            <h3
-              className="text-sm sm:text-base font-bold"
-              style={{ color: formStatus.colorHex }}
-            >
+            <h3 className="text-sm sm:text-base font-bold truncate" style={{ color: readableText(formStatus.colorHex, isDark) }}>
               {formStatus.title}
             </h3>
           </div>
 
-          {/* Actions & Ramp Rate Pill */}
           <div className="flex items-center gap-2">
             {onOpenAiAnalysis && (
               <button
                 type="button"
                 onClick={onOpenAiAnalysis}
                 data-testid="ai_analysis_banner_btn"
-                className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-sm transition-all cursor-pointer"
+                className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-[#2f6fe4] hover:bg-[#245cc4] text-white transition-all"
                 title="Open AI Training Analysis"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -161,13 +146,10 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
               </button>
             )}
 
-            {/* Ramp Rate Pill */}
             <span
               className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
                 rampRate7d > 8.0
-                  ? isDark
-                    ? 'bg-rose-950 text-rose-300 border-rose-800'
-                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800'
                   : isDark
                   ? 'bg-slate-900 text-slate-300 border-slate-700'
                   : 'bg-slate-100 text-slate-700 border-slate-200'
@@ -182,25 +164,24 @@ export const MetricsSummaryCards: React.FC<MetricsSummaryCardsProps> = React.mem
           {formStatus.description}
         </p>
 
-        {/* Weekly TSS, weekly metrics, and distance summary */}
         <div className={`flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 pt-2.5 border-t text-xs font-medium ${
           isDark ? 'border-slate-700/60 text-slate-400' : 'border-slate-200 text-slate-600'
         }`}>
           <div>
-            Weekly Load: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(weeklyTss ?? totalTssLast7d)} TSS/wk</span>
+            Weekly Load: <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{Math.round(weeklyTss ?? totalTssLast7d)} TSS/wk</span>
           </div>
           {typeof weeklyDistanceKm === 'number' && weeklyDistanceKm > 0 && (
             <div>
-              Weekly Dist: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(weeklyDistanceKm)} km/wk</span>
+              Weekly Dist: <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{Math.round(weeklyDistanceKm)} km/wk</span>
             </div>
           )}
           {typeof weeklyHours === 'number' && weeklyHours > 0 && (
             <div>
-              Weekly Time: <span className="font-bold text-slate-900 dark:text-slate-100">{weeklyHours >= 10 ? weeklyHours.toFixed(1) : weeklyHours.toFixed(1)} hrs/wk</span>
+              Weekly Time: <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{weeklyHours.toFixed(1)} hrs/wk</span>
             </div>
           )}
           <div>
-            Total Dist: <span className="font-bold text-slate-900 dark:text-slate-100">{Math.round(totalDistanceKm)} km</span>
+            Total Dist: <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{Math.round(totalDistanceKm)} km</span>
           </div>
         </div>
       </div>

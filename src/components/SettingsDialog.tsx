@@ -20,6 +20,10 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const [maxHrText, setMaxHrText] = useState(String(currentSettings.maxHr));
   const [weightText, setWeightText] = useState(String(currentSettings.weightKg));
 
+  const inputCls = `w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#2f6fe4] ${
+    isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-slate-50 border-slate-300 text-slate-900'
+  }`;
+
   const handleSave = () => {
     const newFtp = parseInt(ftpText, 10) || currentSettings.ftp;
     const newLthr = parseInt(lthrText, 10) || currentSettings.lthr;
@@ -41,14 +45,14 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       data-testid="settings_dialog"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
     >
-      <div className={`border rounded-3xl p-6 w-full max-w-md shadow-xl space-y-4 transition-colors ${
+      <div className={`border rounded-xl p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
         isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-              isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-50 text-cyan-600'
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              isDark ? 'bg-[#eef3fd]/10 text-[#5b8def]' : 'bg-[#eef3fd] text-[#2f6fe4]'
             }`}>
               <Settings className="w-5 h-5" />
             </div>
@@ -84,9 +88,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               type="number"
               value={ftpText}
               onChange={(e) => setFtpText(e.target.value)}
-              className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-cyan-600'
-              }`}
+              className={inputCls}
             />
           </div>
 
@@ -99,9 +101,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               type="number"
               value={lthrText}
               onChange={(e) => setLthrText(e.target.value)}
-              className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-cyan-600'
-              }`}
+              className={inputCls}
             />
           </div>
 
@@ -114,9 +114,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               type="number"
               value={maxHrText}
               onChange={(e) => setMaxHrText(e.target.value)}
-              className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-cyan-600'
-              }`}
+              className={inputCls}
             />
           </div>
 
@@ -130,9 +128,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               step="0.1"
               value={weightText}
               onChange={(e) => setWeightText(e.target.value)}
-              className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-100 focus:border-cyan-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-cyan-600'
-              }`}
+              className={inputCls}
             />
           </div>
         </div>
@@ -142,7 +138,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
           <button
             data-testid="cancel_settings_btn"
             onClick={onDismiss}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl border ${
+            className={`px-4 py-2 text-xs font-semibold rounded-lg border ${
               isDark ? 'text-slate-300 border-slate-700 hover:bg-slate-700' : 'text-slate-700 border-slate-300 hover:bg-slate-100'
             }`}
           >
@@ -152,7 +148,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
           <button
             data-testid="save_settings_btn"
             onClick={handleSave}
-            className="px-4 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl shadow-sm transition-all"
+            className="px-4 py-2 text-xs font-bold text-white bg-[#2f6fe4] hover:bg-[#245cc4] rounded-lg transition-all"
           >
             Save Thresholds
           </button>

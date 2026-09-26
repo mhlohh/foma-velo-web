@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
-import { Activity, ShieldCheck, Zap, Cloud, BarChart3, Upload, Sun, Moon } from 'lucide-react';
+import { Sun, Moon, ShieldCheck, BarChart3, Zap, Upload, Cloud, Activity } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 
 export const LoginScreen: React.FC = () => {
@@ -9,35 +8,29 @@ export const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const configured = supabase !== null;
+
   const handleGoogleLogin = async () => {
+    if (!supabase) {
+      setError(
+        'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file and restart the server.'
+      );
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (signInError) throw signInError;
+      // On success the browser redirects to Supabase and back.
     } catch (err: any) {
-      const code = err?.code || '';
-      const message = err?.message || '';
-
-      // User closed the popup or cancelled: this is expected user behavior, not an application crash/error
-      if (
-        code === 'auth/popup-closed-by-user' ||
-        code === 'auth/cancelled-popup-request' ||
-        code === 'auth/user-cancelled' ||
-        message.includes('popup-closed-by-user') ||
-        message.includes('cancelled-popup-request')
-      ) {
-        console.info('Google sign-in popup closed by user.');
-        return;
-      }
-
-      if (code === 'auth/popup-blocked') {
-        setError('Sign-in pop-up was blocked by your browser. Please allow pop-ups for this tab and try again.');
-        return;
-      }
-
       console.warn('Google login failed:', err);
-      setError(message || 'Failed to sign in with Google. Please try again.');
-    } finally {
+      setError(err?.message || 'Failed to start Google sign-in. Please try again.');
       setLoading(false);
     }
   };
@@ -67,13 +60,13 @@ export const LoginScreen: React.FC = () => {
       }`}>
         {/* Logo and Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-cyan-600 text-white mb-1 shadow-sm">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#0c1c3d] text-white mb-1 shadow-sm">
             <Activity className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight flex items-center justify-center gap-2">
             Foma Velo
             <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
-              isDark ? 'bg-cyan-950 text-cyan-400 border-cyan-800' : 'bg-cyan-50 text-cyan-700 border-cyan-200'
+              isDark ? 'bg-slate-700 text-slate-300 border-slate-600' : 'bg-slate-100 text-slate-600 border-slate-300'
             }`}>
               PMC 2.0
             </span>
@@ -88,7 +81,7 @@ export const LoginScreen: React.FC = () => {
           <div className={`p-3 border rounded-2xl flex items-start gap-2.5 ${
             isDark ? 'bg-slate-900/60 border-slate-700/80' : 'bg-slate-50 border-slate-200'
           }`}>
-            <BarChart3 className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+            <BarChart3 className="w-4 h-4 text-[#2f6fe4] shrink-0 mt-0.5" />
             <div>
               <h4 className="text-xs font-bold">PMC Engine</h4>
               <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -128,7 +121,7 @@ export const LoginScreen: React.FC = () => {
             <div>
               <h4 className="text-xs font-bold">Cloud Sync</h4>
               <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Secure Firebase sync under account
+                Secure Supabase sync under account
               </p>
             </div>
           </div>
@@ -136,14 +129,20 @@ export const LoginScreen: React.FC = () => {
 
         {/* Action Button */}
         <div className="pt-2 space-y-3">
+          {!configured && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-300 text-xs text-center">
+              Supabase env vars missing — see <code>.env.example</code> and MIGRATION.md.
+            </div>
+          )}
+
           <button
             data-testid="login_google_btn"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full py-3 px-4 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-2xl shadow-sm flex items-center justify-center gap-2.5 transition-all disabled:opacity-60 text-sm"
+            className="w-full py-3 px-4 bg-[#2f6fe4] hover:bg-[#245cc4] text-white font-bold rounded-2xl shadow-sm flex items-center justify-center gap-2.5 transition-all disabled:opacity-60 text-sm"
           >
             {loading ? (
-              <span>Connecting to Google...</span>
+              <span>Redirecting to Google...</span>
             ) : (
               <>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
