@@ -7,7 +7,7 @@
     "dev": "tsx --env-file=.env server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "build:client": "vite build",
-    "start": "node --env-file-if-exists=.env dist/server.cjs"
+    "start": "NODE_ENV=production node --env-file-if-exists=.env dist/server.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",
