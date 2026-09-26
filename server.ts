@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 
 async function startServer() {
@@ -101,8 +100,10 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
     res.json({ status: 'ok' });
   });
 
-  // Vite middleware for development
+  // Vite middleware for development (vite is a devDependency, so load it
+  // dynamically — production containers don't ship it)
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
