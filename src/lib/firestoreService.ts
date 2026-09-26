@@ -39,6 +39,19 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export function isTransientLifecycleError(error: unknown): boolean {
+  if (!error) return false;
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    msg.includes('closing') ||
+    msg.includes('hidden') ||
+    msg.includes('offline') ||
+    msg.includes('unavailable') ||
+    msg.includes('terminated') ||
+    msg.includes('network-request-failed')
+  );
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const currentUser = auth.currentUser;
   const errInfo: FirestoreErrorInfo = {
@@ -102,11 +115,19 @@ export function subscribeToUserActivities(
         onNext(activities);
       },
       (error) => {
+        if (isTransientLifecycleError(error)) {
+          console.warn(`Firestore activities listener in transient state (${(error as any)?.message}) on ${path}`);
+          return;
+        }
         handleFirestoreError(error, OperationType.GET, path);
         onError?.(error as Error);
       }
     );
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Firestore activities subscription transient error on ${path}`);
+      return () => {};
+    }
     handleFirestoreError(error, OperationType.GET, path);
     return () => {};
   }
@@ -131,11 +152,19 @@ export function subscribeToUserSettings(
         }
       },
       (error) => {
+        if (isTransientLifecycleError(error)) {
+          console.warn(`Firestore settings listener in transient state (${(error as any)?.message}) on ${path}`);
+          return;
+        }
         handleFirestoreError(error, OperationType.GET, path);
         onError?.(error as Error);
       }
     );
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Firestore settings subscription transient error on ${path}`);
+      return () => {};
+    }
     handleFirestoreError(error, OperationType.GET, path);
     return () => {};
   }
@@ -169,6 +198,10 @@ export async function saveActivityToFirestore(userId: string, activity: Activity
     };
     await setDoc(docRef, payload, { merge: true });
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Transient state during saveActivityToFirestore for ${path}:`, error);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -210,6 +243,10 @@ export async function saveBatchActivitiesToFirestore(userId: string, activities:
       await batch.commit();
     }
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Transient state during saveBatchActivitiesToFirestore for ${path}:`, error);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -222,6 +259,10 @@ export async function deleteActivityFromFirestore(userId: string, activityId: nu
     const docRef = doc(db, 'users', userId, 'activities', docId);
     await deleteDoc(docRef);
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Transient state during deleteActivityFromFirestore for ${path}:`, error);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -241,6 +282,10 @@ export async function clearAllActivitiesFromFirestore(userId: string, activities
       await batch.commit();
     }
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Transient state during clearAllActivitiesFromFirestore for ${path}:`, error);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -252,6 +297,10 @@ export async function saveUserSettingsToFirestore(userId: string, settings: User
     const docRef = doc(db, 'users', userId, 'settings', 'user_settings');
     await setDoc(docRef, settings, { merge: true });
   } catch (error) {
+    if (isTransientLifecycleError(error)) {
+      console.warn(`Transient state during saveUserSettingsToFirestore for ${path}:`, error);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
