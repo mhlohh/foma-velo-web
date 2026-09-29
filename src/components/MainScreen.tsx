@@ -23,7 +23,8 @@ import {
 
 import { useTheme } from '../context/ThemeContext';
 import { TopNav, PageId } from './layout/TopNav';
-import { SideRail, RailTool } from './layout/SideRail';
+import { SideRail } from './layout/SideRail';
+import { navigateTo } from './utils/nav';
 import { LoginPage } from './pages/LoginPage';
 import { ActivityListItem } from './ActivityListItem';
 import { MetricsSummaryCards } from './MetricsSummaryCards';
@@ -36,7 +37,7 @@ import { TrainingZonesSheet } from './TrainingZonesSheet';
 import { AiTrainingAnalysisModal } from './AiTrainingAnalysisModal';
 
 export const MainScreen: React.FC = () => {
-  const { isDark } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
 
   const [session, setSession] = useState<Session | null>(null);
   const [authInitialized, setAuthInitialized] = useState<boolean>(false);
@@ -51,7 +52,6 @@ export const MainScreen: React.FC = () => {
 
   // Navigation state
   const [activePage, setActivePage] = useState<PageId>('dashboard');
-  const [activeTool, setActiveTool] = useState<RailTool>('charts');
 
   // Filters (dashboard list)
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -266,6 +266,14 @@ export const MainScreen: React.FC = () => {
     }
   };
 
+  const handleOpenSettings = () => {
+    setShowSettingsDialog(true);
+  };
+
+  const handleOpenImport = () => {
+    setShowImportDialog(true);
+  };
+
   const handleSignOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -343,32 +351,20 @@ export const MainScreen: React.FC = () => {
     }`}>
       <TopNav
         activePage={activePage}
-        onNavigate={(page) => {
-          setActivePage(page);
-          if (page !== 'dashboard') setActiveTool('charts');
-        }}
+        onNavigate={(page) => setActivePage(page as PageId)}
         user={{ displayName, email: user.email, avatarUrl }}
         isSyncing={isSyncing}
         onSignOut={handleSignOut}
       />
 
       <div className="flex flex-1 flex-col lg:flex-row lg:min-h-0">
-        <SideRail activeTool={activeTool} onToolChange={setActiveTool} />
-
-        {/* Mobile tool tabs (SideRail replacement) */}
-        <div className="lg:hidden border-b w-full px-4 py-2 flex gap-2 overflow-x-auto">
-          {(['charts', 'workouts', 'routes', 'plans'] as RailTool[]).map((tool) => (
-            <button
-              key={tool}
-              onClick={() => setActiveTool(tool)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap capitalize ${
-                activeTool === tool ? 'bg-[#2f6fe4] text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-              }`}
-            >
-              {tool}
-            </button>
-          ))}
-        </div>
+        <SideRail
+        onDashboard={() => setActivePage('dashboard')}
+        onImport={() => setShowImportDialog(true)}
+        onSettings={() => setShowSettingsDialog(true)}
+        onToggleTheme={() => toggleTheme()}
+        onSignOut={handleSignOut}
+      />
 
         <main className="flex-1 min-w-0 p-3 sm:p-6 overflow-x-hidden">
           {/* Quick action bar */}
@@ -412,16 +408,6 @@ export const MainScreen: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">AI Coach</span>
             </button>
-
-            <button
-              data-testid="settings_btn"
-              onClick={() => setShowSettingsDialog(true)}
-              className="p-2 border rounded-lg bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-all"
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
 
           </div>
 

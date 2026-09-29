@@ -276,7 +276,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               Import CSV
             </button>
           </div>
-          <Plus className="w-0 h-0" />
         </div>
       </div>
     </div>
