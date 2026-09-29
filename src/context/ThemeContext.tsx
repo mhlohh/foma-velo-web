@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Theme = 'light' | 'dark';
+export type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
@@ -14,22 +14,29 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('foma_velo_theme');
-    return (saved === 'dark' || saved === 'light') ? saved : 'light';
+    if (saved === 'light') return 'light';
+    if (saved === 'dark' || saved === 'black') return 'dark';
+    return 'dark';
   });
 
   const isDark = theme === 'dark';
 
   useEffect(() => {
     localStorage.setItem('foma_velo_theme', theme);
+    const root = document.documentElement;
+    root.dataset.theme = theme;
+
     if (isDark) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      root.classList.remove('light');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.classList.add('light');
     }
   }, [theme, isDark]);
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   const setTheme = (newTheme: Theme) => {
@@ -46,10 +53,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useTheme = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (!context) {
-    // Fallback if rendered outside provider
     return {
-      theme: 'light',
-      isDark: false,
+      theme: 'dark',
+      isDark: true,
       toggleTheme: () => {},
       setTheme: () => {},
     };

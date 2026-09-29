@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Upload, FileText, CheckCircle2, AlertCircle, X, FolderOpen } from 'lucide-react';
-import { StravaCsvParser, CsvParseResult } from '../utils/stravaCsvParser';
-import { useTheme } from '../context/ThemeContext';
+import { StravaCsvParser } from '../utils/stravaCsvParser';
 
 interface ImportCsvDialogProps {
   onDismiss: () => void;
   onImport: (csvText: string) => void;
 }
 
-export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
-  onDismiss,
-  onImport,
-}) => {
-  const { isDark } = useTheme();
+export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({ onDismiss, onImport }) => {
   const [csvInput, setCsvInput] = useState('');
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [csvResult, setCsvResult] = useState<{ activities: number; skipped: number; error: string | null }>({
+  const [csvResult, setCsvResult] = useState<{
+    activities: number;
+    skipped: number;
+    error: string | null;
+  }>({
     activities: 0,
     skipped: 0,
     error: null,
@@ -55,97 +55,102 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       data-testid="import_csv_dialog"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      style={{ backgroundColor: 'var(--bg-backdrop)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
     >
-      <div className={`border rounded-3xl p-6 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
-        isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-      }`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+        className="ff-surface-card rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[var(--text-primary)]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-              isDark ? 'bg-cyan-950 text-cyan-400' : 'bg-cyan-50 text-cyan-600'
-            }`}>
-              <Upload className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--accent-text)] flex items-center justify-center">
+              <Upload className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold">Import activities.csv</h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Upload Strava archive dataset
-              </p>
+              <h3 className="text-sm font-semibold">Import activities.csv</h3>
+              <p className="text-xs text-[var(--text-muted)]">Upload Strava archive dataset</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onDismiss}
-            className={`p-1 rounded-lg ${isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-          Select your Strava activities.csv archive file from your storage. The parser will filter cycle rides and compute TSS, CTL, ATL, and TSB.
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          Select your Strava <code className="font-mono">activities.csv</code> archive file. The
+          parser filters cycle rides and computes TSS, CTL, ATL, and TSB.
         </p>
 
         {/* Upload File Zone */}
         <label
           data-testid="browse_phone_storage_btn"
-          className={`flex items-center justify-between p-4 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${
+          className={`flex items-center justify-between p-4 rounded-xl border border-dashed cursor-pointer transition-colors ${
             selectedFileName
-              ? isDark
-                ? 'bg-cyan-950/40 border-cyan-500'
-                : 'bg-cyan-50 border-cyan-600'
-              : isDark
-              ? 'bg-slate-900/60 border-slate-700 hover:border-slate-500'
-              : 'bg-slate-50 border-slate-300 hover:border-slate-400'
+              ? 'bg-[var(--accent-subtle-bg)] border-[var(--accent-subtle-border)]'
+              : 'bg-[var(--bg-canvas)] border-[var(--border-hover)] hover:border-[var(--accent-text)]'
           }`}
         >
           <div className="flex items-center gap-3">
             {selectedFileName ? (
-              <FileText className="w-6 h-6 text-cyan-600 dark:text-cyan-400 shrink-0" />
+              <FileText className="w-5 h-5 text-[var(--accent-text)] shrink-0" />
             ) : (
-              <FolderOpen className={`w-6 h-6 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+              <FolderOpen className="w-5 h-5 shrink-0 text-[var(--text-muted)]" />
             )}
             <div>
-              <span className="text-xs font-bold block">
+              <span className="text-xs font-semibold block text-[var(--text-primary)]">
                 {selectedFileName || 'Select CSV File'}
               </span>
-              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className="text-[11px] text-[var(--text-muted)]">
                 {selectedFileName ? 'File loaded successfully' : 'Click to select activities.csv'}
               </span>
             </div>
           </div>
 
-          {selectedFileName && <CheckCircle2 className="w-5 h-5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+          {selectedFileName && (
+            <CheckCircle2 className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+          )}
 
           <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
         </label>
 
         {/* Preview Summary */}
         {csvResult.activities > 0 && (
-          <div className={`rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold ${csvResult.activities === 0 ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300' : 'bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300'}`}>
-            {csvResult.activities === 0 ? (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            ) : (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-cyan-600 dark:text-cyan-400" />
-            )}
-            <span>{csvResult.activities} cycle ride{csvResult.activities === 1 ? '' : 's'} ready for import</span>
+          <div className="rounded-xl p-3 flex items-center gap-2.5 text-xs font-medium bg-[var(--accent-subtle-bg)] border border-[var(--accent-subtle-border)] text-[var(--accent-text)]">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>
+              {csvResult.activities} cycle ride{csvResult.activities === 1 ? '' : 's'} ready for
+              import
+            </span>
           </div>
         )}
 
-        {/* Skipped rows (silent drops) */}
+        {/* Skipped rows */}
         {csvResult.skipped !== null && csvResult.skipped > 0 && (
-          <div className="text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}">
-            {csvResult.skipped} row{csvResult.skipped === 1 ? ' was' : 's were'} skipped (not cycle rides, or unparseable date)
+          <div className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+            {csvResult.skipped} row{csvResult.skipped === 1 ? ' was' : 's were'} skipped (not cycle
+            rides, or unparseable date)
           </div>
         )}
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-3 flex items-center gap-2.5 text-xs text-rose-700 dark:text-rose-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-center gap-2.5 text-xs text-rose-500">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -153,9 +158,10 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
         {/* Manual Text Paste Option */}
         <div>
           <button
+            type="button"
             data-testid="toggle_manual_csv_text"
             onClick={() => setShowManualText(!showManualText)}
-            className="text-xs text-cyan-600 dark:text-cyan-400 font-medium hover:underline focus:outline-none"
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium hover:underline focus:outline-none"
           >
             {showManualText ? '▼ Hide manual text box' : '▶ Or paste CSV text manually'}
           </button>
@@ -180,26 +186,24 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
                 }
               }}
               placeholder="Activity ID,Activity Date,Activity Name,Activity Type,Moving Time,Distance..."
-              className={`w-full mt-2 h-28 border rounded-xl p-3 text-xs font-mono focus:outline-none ${
-                isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-900'
-              }`}
+              className="w-full mt-2 h-28 border border-[var(--border-subtle)] bg-[var(--bg-input)] focus:border-[var(--accent-focus)] rounded-xl p-3 text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none transition-colors"
             />
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <button
+            type="button"
             data-testid="cancel_import_btn"
             onClick={onDismiss}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl border ${
-              isDark ? 'text-slate-300 border-slate-700 hover:bg-slate-700' : 'text-slate-700 border-slate-300 hover:bg-slate-100'
-            }`}
+            className="px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
             Cancel
           </button>
 
           <button
+            type="button"
             data-testid="confirm_import_btn"
             disabled={!csvInput.trim() || csvResult.activities === 0}
             onClick={() => {
@@ -208,12 +212,12 @@ export const ImportCsvDialog: React.FC<ImportCsvDialogProps> = ({
                 onDismiss();
               }
             }}
-            className="px-4 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 rounded-xl shadow-sm transition-all"
+            className="ff-btn-sage px-4 py-2 text-xs font-semibold disabled:opacity-40 rounded-lg"
           >
-            Import Dataset ({csvResult.activities > 0 ? csvResult.activities : 0} activities)
+            Import Dataset ({csvResult.activities > 0 ? csvResult.activities : 0})
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

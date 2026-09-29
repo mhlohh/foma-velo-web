@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Calendar, Plus, X, Zap, Clock } from 'lucide-react';
 import { ActivityEntity } from '../types';
-import { useTheme } from '../context/ThemeContext';
 
 interface AddWorkoutDialogProps {
   onDismiss: () => void;
   onAdd: (workout: ActivityEntity) => void;
 }
 
-export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
-  onDismiss,
-  onAdd,
-}) => {
-  const { isDark } = useTheme();
-
+export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({ onDismiss, onAdd }) => {
   const [entryMode, setEntryMode] = useState<'manual' | 'planned'>('manual');
 
   const [title, setTitle] = useState('');
@@ -29,9 +24,8 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
   const [avgHr, setAvgHr] = useState('');
   const [notes, setNotes] = useState('');
 
-  const inputCls = `w-full border rounded-md px-3 py-2 text-xs focus:outline-none focus:border-[#2f6fe4] ${
-    isDark ? 'bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
-  }`;
+  const inputCls =
+    'w-full border border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[var(--accent-focus)] transition-colors';
 
   const handleCreate = () => {
     if (!title.trim()) return;
@@ -94,52 +88,73 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       data-testid="add_workout_dialog"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      style={{ backgroundColor: 'var(--bg-backdrop)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
     >
-      <div className={`border rounded-xl p-6 w-full max-w-md shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
-        isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-      }`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+        className="ff-surface-card rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[var(--text-primary)]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#eef3fd] text-[#2f6fe4] dark:bg-[#eef3fd]/10 dark:text-[#5b8def] flex items-center justify-center">
-              {entryMode === 'manual' ? <Zap className="w-5 h-5" /> : <Calendar className="w-5 h-5" />}
+            <div className="w-9 h-9 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--accent-text)] flex items-center justify-center">
+              {entryMode === 'manual' ? (
+                <Zap className="w-4 h-4" />
+              ) : (
+                <Calendar className="w-4 h-4" />
+              )}
             </div>
             <div>
-              <h3 className="text-base font-bold">
-                {entryMode === 'manual' ? 'Manual TSS & Activity Entry' : 'Plan Structured Workout'}
+              <h3 className="text-sm font-semibold">
+                {entryMode === 'manual'
+                  ? 'Manual TSS & Activity Entry'
+                  : 'Plan Structured Workout'}
               </h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {entryMode === 'manual' ? 'Log completed session with custom TSS' : 'Schedule future training session'}
+              <p className="text-xs text-[var(--text-muted)]">
+                {entryMode === 'manual'
+                  ? 'Log completed session with custom TSS'
+                  : 'Schedule future training session'}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onDismiss}
-            className={`p-1 rounded-lg ${
-              isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className={`grid grid-cols-2 gap-1 p-1 rounded-lg border ${
-          isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-100 border-slate-200'
-        }`}>
+        {/* Mode Selector Tabs with sliding layoutId pill */}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
           <button
             type="button"
             data-testid="mode_tab_manual"
             onClick={() => setEntryMode('manual')}
-            className={`py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`relative py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
               entryMode === 'manual'
-                ? 'bg-[#2f6fe4] text-white shadow-sm'
-                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
+            {entryMode === 'manual' && (
+              <motion.span
+                layoutId="workout-mode-pill"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="absolute inset-0 rounded-lg bg-[var(--bg-pill)] -z-10"
+              />
+            )}
             <Clock className="w-3.5 h-3.5" />
             Manual TSS Entry
           </button>
@@ -147,12 +162,19 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
             type="button"
             data-testid="mode_tab_planned"
             onClick={() => setEntryMode('planned')}
-            className={`py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            className={`relative py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
               entryMode === 'planned'
-                ? 'bg-[#2f6fe4] text-white shadow-sm'
-                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
             }`}
           >
+            {entryMode === 'planned' && (
+              <motion.span
+                layoutId="workout-mode-pill"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="absolute inset-0 rounded-lg bg-[var(--bg-pill)] -z-10"
+              />
+            )}
             <Calendar className="w-3.5 h-3.5" />
             Plan Future
           </button>
@@ -161,7 +183,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
         {/* Inputs */}
         <div className="space-y-3">
           <div>
-            <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
               Workout Title / Name *
             </label>
             <input
@@ -169,14 +191,18 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={entryMode === 'manual' ? 'e.g. Afternoon Endurance Ride' : 'e.g. 4x8m VO2Max Intervals'}
+              placeholder={
+                entryMode === 'manual'
+                  ? 'e.g. Afternoon Endurance Ride'
+                  : 'e.g. 4x8m VO2Max Intervals'
+              }
               className={inputCls}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
                 Date *
               </label>
               {entryMode === 'manual' ? (
@@ -206,7 +232,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
             </div>
 
             <div>
-              <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
                 Activity Type
               </label>
               <select
@@ -227,7 +253,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
                 Manual TSS Score *
               </label>
               <input
@@ -238,12 +264,12 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                 value={tssText}
                 onChange={(e) => setTssText(e.target.value)}
                 placeholder="e.g. 85"
-                className={`${inputCls} font-bold text-[#2f6fe4]`}
+                className={`${inputCls} font-mono font-bold text-[var(--accent-text)]`}
               />
             </div>
 
             <div>
-              <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
                 Duration (Mins)
               </label>
               <input
@@ -252,7 +278,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                 min="1"
                 value={durationMins}
                 onChange={(e) => setDurationMins(e.target.value)}
-                className={inputCls}
+                className={`${inputCls} font-mono`}
               />
             </div>
           </div>
@@ -261,7 +287,7 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
           {entryMode === 'manual' && (
             <div className="grid grid-cols-3 gap-2 pt-1">
               <div>
-                <label className={`text-[10px] font-semibold mb-1 block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <label className="text-[10px] font-medium mb-1 block text-[var(--text-muted)]">
                   Distance (km)
                 </label>
                 <input
@@ -270,12 +296,12 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={distanceKm}
                   onChange={(e) => setDistanceKm(e.target.value)}
                   placeholder="e.g. 45"
-                  className={inputCls}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
 
               <div>
-                <label className={`text-[10px] font-semibold mb-1 block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <label className="text-[10px] font-medium mb-1 block text-[var(--text-muted)]">
                   Avg Power (W)
                 </label>
                 <input
@@ -283,12 +309,12 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={avgWatts}
                   onChange={(e) => setAvgWatts(e.target.value)}
                   placeholder="e.g. 210"
-                  className={inputCls}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
 
               <div>
-                <label className={`text-[10px] font-semibold mb-1 block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <label className="text-[10px] font-medium mb-1 block text-[var(--text-muted)]">
                   Avg HR (bpm)
                 </label>
                 <input
@@ -296,14 +322,14 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
                   value={avgHr}
                   onChange={(e) => setAvgHr(e.target.value)}
                   placeholder="e.g. 152"
-                  className={inputCls}
+                  className={`${inputCls} font-mono`}
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className={`text-xs font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <label className="text-xs font-medium mb-1 block text-[var(--text-secondary)]">
               Session Notes / Pacing
             </label>
             <textarea
@@ -317,28 +343,28 @@ export const AddWorkoutDialog: React.FC<AddWorkoutDialogProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <button
+            type="button"
             data-testid="cancel_workout_btn"
             onClick={onDismiss}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg border ${
-              isDark ? 'text-slate-300 border-slate-700 hover:bg-slate-700' : 'text-slate-700 border-slate-300 hover:bg-slate-100'
-            }`}
+            className="px-4 py-2 text-xs font-medium rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
             Cancel
           </button>
 
           <button
+            type="button"
             data-testid="confirm_add_workout_btn"
             disabled={!title.trim()}
             onClick={handleCreate}
-            className="px-4 py-2 text-xs font-bold text-white bg-[#2f6fe4] hover:bg-[#245cc4] rounded-lg transition-all flex items-center gap-1 disabled:opacity-50"
+            className="ff-btn-sage px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             {entryMode === 'manual' ? 'Save Manual Entry' : 'Schedule Workout'}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

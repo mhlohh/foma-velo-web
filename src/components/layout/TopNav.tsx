@@ -1,5 +1,15 @@
 import React from 'react';
-import { CalendarDays, LayoutDashboard, LogOut, RefreshCw, Sun, Moon } from 'lucide-react';
+import { motion } from 'motion/react';
+import {
+  CalendarDays,
+  LayoutDashboard,
+  LogOut,
+  RefreshCw,
+  Sun,
+  Moon,
+  Plus,
+  PanelLeft,
+} from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 export type PageId = 'calendar' | 'dashboard';
@@ -14,11 +24,18 @@ interface TopNavProps {
   } | null;
   isSyncing: boolean;
   onSignOut: () => void;
+  onToggleSidebar?: () => void;
+  onQuickAddWorkout?: () => void;
 }
 
-const NAV_ITEMS: { id: PageId; label: string; icon: React.ElementType }[] = [
-  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const NAV_ITEMS: { id: PageId; label: string; tabTitle: string; icon: React.ElementType }[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    tabTitle: 'Performance Dashboard',
+    icon: LayoutDashboard,
+  },
+  { id: 'calendar', label: 'Calendar', tabTitle: 'Training Calendar', icon: CalendarDays },
 ];
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -27,112 +44,138 @@ export const TopNav: React.FC<TopNavProps> = ({
   user,
   isSyncing,
   onSignOut,
+  onToggleSidebar,
+  onQuickAddWorkout,
 }) => {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0c1c3d] text-white shadow-md">
-      <div className="flex items-center justify-between h-14 pl-4 pr-3">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#2f6fe4]" fill="currentColor" aria-hidden>
-            <path d="M3 20 8 8l3.2 7L14 6l2.4 8L19 9l2 11h-2.4l-1-5.4-2.2 5.4h-2.2L11 12l-2.4 8H3z" />
-          </svg>
-          <span className="hidden sm:inline text-lg font-black tracking-tight select-none">FOMAVELO</span>
-        </div>
-
-        {/* Center nav */}
-        <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
-          {NAV_ITEMS.map((item) => (
+    <header className="sticky top-0 z-30 h-11 bg-[var(--bg-sidebar)] text-[var(--text-primary)] border-b border-[var(--border-subtle)] transition-colors">
+      <div className="flex items-center justify-between h-full px-3 gap-2">
+        {/* Left: Sidebar toggle + Workspace Tabs */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {onToggleSidebar && (
             <button
-              key={item.id}
-              data-testid={`nav_${item.id}`}
-              onClick={() => onNavigate(item.id)}
-              className={`px-4 py-2 rounded-md text-[15px] font-semibold transition-colors ${
-                activePage === item.id
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
-              }`}
+              type="button"
+              onClick={onToggleSidebar}
+              className="hidden lg:inline-flex p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+              title="Toggle Sidebar"
             >
-              {item.label}
+              <PanelLeft className="w-4 h-4" />
             </button>
-          ))}
-        </nav>
+          )}
 
-        {/* Mobile page tabs (icons only — text would overflow phones) */}
-        <nav className="md:hidden flex items-center gap-0.5" aria-label="Pages">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              data-testid={`nav_${id}`}
-              onClick={() => onNavigate(id)}
-              aria-label={label}
-              title={label}
-              className={`p-2 rounded-md transition-colors ${
-                activePage === id
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon className="w-[18px] h-[18px]" />
-            </button>
-          ))}
-        </nav>
-        <div className="hidden md:block" />
-
-        {/* Right side */}
-        <div className="flex items-center gap-2.5">
-          <span className="hidden lg:inline-flex items-center rounded-full bg-[#2f6fe4] text-white text-xs font-bold px-3.5 py-1.5">
-            Coach
+          {/* Mobile brand */}
+          <span className="lg:hidden font-brand text-sm font-bold tracking-tight mr-1.5">
+            FomaVelo
           </span>
 
+          {/* Workspace Tab Pills */}
+          <nav className="flex items-center gap-1" aria-label="Workspace Tabs">
+            {NAV_ITEMS.map(({ id, label, tabTitle, icon: Icon }) => {
+              const active = activePage === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  data-testid={`nav_${id}`}
+                  onClick={() => onNavigate(id)}
+                  className={`relative px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                    active
+                      ? 'text-[var(--text-primary)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="topnav-active-tab"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                      className="absolute inset-0 rounded-md bg-[var(--bg-card)] border border-[var(--border-subtle)] -z-10"
+                    />
+                  )}
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{tabTitle}</span>
+                  <span className="sm:hidden">{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {onQuickAddWorkout && (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={onQuickAddWorkout}
+              title="Quick Plan / Log Workout"
+              className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </motion.button>
+          )}
+        </div>
+
+        {/* Right: Sync indicator, Theme switcher, User & Sign out */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Sync status */}
+          <span
+            className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono text-[var(--text-muted)]"
+            title={isSyncing ? 'Syncing with Supabase…' : 'Workspace synced'}
+          >
+            <RefreshCw
+              className={`w-3 h-3 ${
+                isSyncing ? 'animate-spin text-[#10b981]' : 'text-[var(--text-muted)]'
+              }`}
+            />
+            <span className="hidden md:inline">{isSyncing ? 'Syncing' : 'Synced'}</span>
+          </span>
+
+          {/* Theme toggle button (Pitch Black <-> Pure White) */}
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.94 }}
+            onClick={toggleTheme}
+            data-testid="theme_toggle_btn"
+            className="px-2.5 py-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors"
+            title={isDark ? 'Switch to Pure White Light Theme' : 'Switch to Pitch Black Dark Theme'}
+          >
+            {isDark ? (
+              <Sun className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-[var(--text-primary)]" />
+            )}
+            <span className="hidden sm:inline">{isDark ? 'Black' : 'White'}</span>
+          </motion.button>
+
           {user && (
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 pl-1 border-l border-[var(--border-subtle)]">
               {user.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
                   alt=""
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-white/30"
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-[var(--border-hover)]"
                 />
               ) : (
-                <span className="w-7 h-7 rounded-full bg-[#2f6fe4] text-white text-xs font-bold flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-[var(--bg-pill)] text-[var(--text-primary)] text-[10px] font-bold flex items-center justify-center">
                   {(user.displayName || user.email || 'A')[0].toUpperCase()}
                 </span>
               )}
-              <span className="hidden sm:block text-sm font-bold">
+              <span className="hidden md:block text-xs font-medium text-[var(--text-secondary)] max-w-[120px] truncate">
                 {user.displayName || user.email?.split('@')[0]}
               </span>
             </div>
           )}
 
-          {/* Sync indicator (hidden on phones to save space) */}
-          <span
-            className="hidden sm:inline-flex p-1.5 rounded-md text-slate-300 hover:text-white"
-            title={isSyncing ? 'Syncing with Supabase…' : 'Synced'}
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-emerald-400' : ''}`} />
-          </span>
-
-          {/* Theme toggle */}
-          <button
+          <motion.button
             type="button"
-            onClick={toggleTheme}
-            data-testid="theme_toggle_btn"
-            className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10"
-            title={isDark ? 'Switch to light' : 'Switch to dark'}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
+            whileTap={{ scale: 0.94 }}
             onClick={onSignOut}
             data-testid="auth_signout_btn"
-            className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
             title="Sign out"
           >
-            <LogOut className="w-4 h-4" />
-          </button>
+            <LogOut className="w-3.5 h-3.5" />
+          </motion.button>
         </div>
       </div>
     </header>

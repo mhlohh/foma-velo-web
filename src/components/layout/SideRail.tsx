@@ -1,156 +1,428 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Upload,
+  Settings,
+  LogOut,
+  Plus,
+  Sparkles,
+  Zap,
+  ChevronDown,
+  FolderKanban,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { PageId } from './TopNav';
 
 export interface SideRailProps {
-  // Sticky top group
+  activePage?: PageId;
   onDashboard: () => void;
-  // Bottom reveal group
+  onCalendar?: () => void;
   onImport: () => void;
   onSettings: () => void;
   onToggleTheme: () => void;
   onSignOut: () => void;
+  onPlanWorkout?: () => void;
+  onZones?: () => void;
+  onAiCoach?: () => void;
+  activityCount?: number;
+  plannedCount?: number;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-const STICKY_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▤' },
-  { id: 'calendar', label: 'Calendar', icon: '⊞' },
-];
-
-const TOUCHABLE_ITEMS = [
-  { id: 'import', label: 'Import CSV', icon: '⬆' },
-  { id: 'settings', label: 'Settings', icon: '⚙' },
-  { id: 'theme', label: 'Dark/Light', icon: '◎' },
-  { id: 'signout', label: 'Sign Out', icon: '⇳' },
-];
-
 export const SideRail: React.FC<SideRailProps> = ({
+  activePage = 'dashboard',
   onDashboard,
+  onCalendar,
   onImport,
   onSettings,
   onToggleTheme,
   onSignOut,
+  onPlanWorkout,
+  onZones,
+  onAiCoach,
+  activityCount = 0,
+  plannedCount = 0,
+  collapsed = false,
+  onToggleCollapse,
 }) => {
   const { isDark } = useTheme();
+  const [toolsExpanded, setToolsExpanded] = useState(true);
+  const [viewsExpanded, setViewsExpanded] = useState(true);
+
+  const navItems: {
+    id: PageId;
+    label: string;
+    icon: React.ElementType;
+    badge: number;
+    onClick: () => void;
+  }[] = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      badge: activityCount,
+      onClick: onDashboard,
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      icon: CalendarDays,
+      badge: plannedCount,
+      onClick: onCalendar ?? onDashboard,
+    },
+  ];
 
   return (
-    <aside
-      className={`relative flex flex-col items-center border-r py-3 gap-1 transition-colors overflow-hidden z-0 ${
-        isDark ? 'border-slate-700 bg-slate-800/95' : 'border-slate-200 bg-white/95'
-      }`}
-      onMouseEnter={() => document.querySelector('[data-siderail]')?.classList.add('expanded')}
-      onMouseLeave={() => document.querySelector('[data-siderail]')?.classList.remove('expanded')}
-      onFocus={() => document.querySelector('[data-siderail]')?.classList.add('expanded')}
-      onBlur={() => document.querySelector('[data-siderail]')?.classList.remove('expanded')}
-      tabIndex={0}
+    <motion.aside
+      initial={false}
+      animate={{ width: collapsed ? 60 : 228 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
       data-siderail
+      className="hidden lg:flex flex-col shrink-0 select-none border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] text-[var(--text-primary)] overflow-hidden z-20 transition-colors"
     >
-      {/* Sticky top: always visible. */}
-      {STICKY_ITEMS.map(({ id, label, icon }) => {
-        const active = id === 'dashboard';
-        return (
+      {/* Top Brand Header */}
+      <div className="h-12 px-3.5 flex items-center justify-between shrink-0">
+        <AnimatePresence mode="wait" initial={false}>
+          {!collapsed ? (
+            <motion.div
+              key="brand-full"
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -6 }}
+              transition={{ duration: 0.16 }}
+              className="flex items-center gap-2 min-w-0"
+            >
+              <span className="font-brand text-[19px] font-bold tracking-tight text-[var(--text-primary)] truncate">
+                FomaVelo
+              </span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="brand-mini"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: 0.16 }}
+              className="w-full flex items-center justify-center"
+            >
+              <span className="font-brand text-base font-bold text-[var(--accent-text)]">FV</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {onToggleCollapse && !collapsed && (
           <button
-            key={id}
-            onClick={onDashboard}
-            className={`w-[76px] rounded-lg py-2.5 flex flex-col items-center gap-1.5 transition-colors ${
-              active
-                ? 'bg-[#2f6fe4] text-white shadow-sm'
-                : isDark
-                ? 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
+            type="button"
+            onClick={onToggleCollapse}
+            title="Collapse sidebar"
+            className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
           >
-            <span className="text-lg">{icon}</span>
-            <span className="text-[10px] font-semibold leading-tight text-center">{label}</span>
+            <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
-        );
-      })}
+        )}
+      </div>
 
-      {/* Bottom group: visible only on hover/focus. */}
-      <div
-        className={`flex flex-col items-center gap-1 mt-1 transition-all duration-200 overflow-hidden ${
-          isDark ? 'text-slate-300' : 'text-slate-600'
-        }`}
-        data-siderail-actions
-      >
-        {TOUCHABLE_ITEMS.map(({ id, label, icon }) => {
-          let onClick: () => void;
-          switch (id) {
-            case 'theme': onClick = onToggleTheme; break;
-            case 'signout': onClick = onSignOut; break;
-            case 'import': onClick = onImport; break;
-            case 'settings': onClick = onSettings; break;
-            default: onClick = () => {};
-          }
-
-          return (
-            <button
-              key={id}
-              onClick={onClick}
-              data-testid={`sidebar_${id}`}
-              title={label}
-              className={`w-[76px] rounded-lg py-2.5 flex flex-col items-center gap-1.5 transition-colors ${
-                id === 'theme'
-                  ? 'bg-[#2f6fe4] text-white'
-                  : 'hover:bg-slate-700/60 hover:text-white'
+      {/* Scrollable Navigation Body */}
+      <div className="flex-1 overflow-y-auto px-2.5 py-1.5 space-y-4">
+        <div className="space-y-0.5">
+          {onPlanWorkout && (
+            <motion.button
+              type="button"
+              whileHover={{ x: collapsed ? 0 : 2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onPlanWorkout}
+              title="Plan Workout"
+              className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors ${
+                collapsed ? 'justify-center' : ''
               }`}
             >
-              <span className="text-lg">{icon}</span>
-              <span className="text-[10px] font-semibold leading-tight text-center">{label}</span>
-            </button>
-          );
-        })}
-      </div>
+              <Plus className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+              {!collapsed && <span className="truncate">Plan workout</span>}
+            </motion.button>
+          )}
 
-      {/* Reveal drawer: visible only while hovered/focused. */}
-      <div
-        className={`absolute left-0 top-0 bottom-0 w-[200px] sm:w-[220px] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 shadow-xl transition-transform duration-200 z-50 ${
-          isDark ? 'bg-slate-900' : 'bg-white'
-        }`}
-        style={{ transform: 'translateX(0)', transitionDelay: '0ms' }}
-      >
-        <div className="p-3 space-y-1">
-          {STICKY_ITEMS.map(({ id, label, icon }) => {
-            const active = id === 'dashboard';
+          {!collapsed && (
+            <div className="px-2.5 pt-2.5 pb-1 text-[10px] font-medium tracking-wide text-[var(--text-muted)]">
+              Workspace
+            </div>
+          )}
+
+          {navItems.map(({ id, label, icon: Icon, badge, onClick }) => {
+            const active = activePage === id;
             return (
-              <button
+              <motion.button
                 key={id}
-                onClick={onDashboard}
-                className={`w-full rounded-md px-3 py-2 text-left text-xs font-semibold transition-colors ${
-                  active ? 'bg-[#2f6fe4] text-white' : isDark ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="px-3 space-y-1 pb-3">
-          {TOUCHABLE_ITEMS.map(({ id, label, icon }) => {
-            let onClick: () => void;
-            switch (id) {
-              case 'theme': onClick = onToggleTheme; break;
-              case 'signout': onClick = onSignOut; break;
-              case 'import': onClick = onImport; break;
-              case 'settings': onClick = onSettings; break;
-              default: onClick = () => {};
-            }
-            return (
-              <button
-                key={id}
+                type="button"
+                whileHover={{ x: collapsed ? 0 : 2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={onClick}
                 data-testid={`sidebar_nav_${id}`}
-                className={`w-full rounded-md px-3 py-2 text-left text-xs font-semibold transition-colors ${
-                  id === 'theme'
-                    ? 'bg-[#2f6fe4] text-white'
-                    : isDark ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-100'
+                title={label}
+                className={`relative w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
+                  collapsed ? 'justify-center' : ''
+                } ${
+                  active
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60'
                 }`}
               >
-                {label}
-              </button>
+                {active && (
+                  <motion.span
+                    layoutId="sidebar-active-pill"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    className="absolute inset-0 rounded-lg bg-[var(--bg-pill)] -z-10"
+                  />
+                )}
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      active ? 'text-[var(--accent-text)]' : 'text-[var(--text-muted)]'
+                    }`}
+                  />
+                  {!collapsed && <span className="truncate">{label}</span>}
+                </span>
+
+                {!collapsed && (
+                  <span className="ff-badge ml-2 px-2 py-0.2 rounded-full text-[10px] font-bold font-mono leading-4 transition-colors">
+                    {badge}
+                  </span>
+                )}
+              </motion.button>
             );
           })}
+
+          {onAiCoach && (
+            <motion.button
+              type="button"
+              whileHover={{ x: collapsed ? 0 : 2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onAiCoach}
+              title="AI Training Coach"
+              className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60 transition-colors ${
+                collapsed ? 'justify-center' : ''
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
+              {!collapsed && <span className="truncate">AI Coach insights</span>}
+            </motion.button>
+          )}
+
+          {onZones && (
+            <motion.button
+              type="button"
+              whileHover={{ x: collapsed ? 0 : 2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onZones}
+              title="Training Zones"
+              className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60 transition-colors ${
+                collapsed ? 'justify-center' : ''
+              }`}
+            >
+              <Zap className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+              {!collapsed && <span className="truncate">Training zones</span>}
+            </motion.button>
+          )}
         </div>
+
+        {/* Projects / Data Tree Section */}
+        {!collapsed && (
+          <div className="pt-1 space-y-1">
+            <div className="px-2.5 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+              Training Data
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={() => setToolsExpanded((v) => !v)}
+                className="w-full flex items-center gap-1.5 px-2 py-1 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                <motion.span
+                  animate={{ rotate: toolsExpanded ? 0 : -90 }}
+                  transition={{ duration: 0.16 }}
+                >
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                </motion.span>
+                <FolderKanban className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                <span className="truncate">strava_dataset</span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {toolsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="overflow-hidden pl-5 pr-1 pt-0.5 space-y-0.5"
+                  >
+                    <motion.button
+                      type="button"
+                      whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={onImport}
+                      data-testid="sidebar_import"
+                      className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60 transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                      <span className="truncate">Import CSV</span>
+                    </motion.button>
+
+                    <motion.button
+                      type="button"
+                      whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={onSettings}
+                      className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60 transition-colors"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                      <span className="truncate">Thresholds (FTP/HR)</span>
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={() => setViewsExpanded((v) => !v)}
+                className="w-full flex items-center gap-1.5 px-2 py-1 text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                <motion.span
+                  animate={{ rotate: viewsExpanded ? 0 : -90 }}
+                  transition={{ duration: 0.16 }}
+                >
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                </motion.span>
+                <FolderKanban className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                <span className="truncate">foma-velo-pmc</span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {viewsExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="overflow-hidden pl-4 pr-1 pt-1"
+                  >
+                    <button
+                      type="button"
+                      onClick={
+                        activePage === 'dashboard' ? onDashboard : (onCalendar ?? onDashboard)
+                      }
+                      className="w-full rounded-lg bg-[var(--bg-pill)] px-3 py-1.5 text-left text-[12px] font-medium text-[var(--text-primary)] truncate transition-colors hover:opacity-90"
+                    >
+                      {activePage === 'dashboard'
+                        ? 'PMC Performance Chart'
+                        : 'Training Calendar'}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
+        {collapsed && (
+          <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={onImport}
+              data-testid="sidebar_import"
+              title="Import CSV"
+              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
-    </aside>
+
+      {/* Bottom Utility Bar */}
+      <div
+        data-siderail-actions
+        className={`border-t border-[var(--border-subtle)] px-3 py-2.5 flex items-center ${
+          collapsed ? 'flex-col gap-2 justify-center' : 'justify-between'
+        }`}
+      >
+        <div className={`flex items-center ${collapsed ? 'flex-col gap-1.5' : 'gap-1'}`}>
+          {collapsed && onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Expand sidebar"
+              className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+          )}
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={onSettings}
+            data-testid="sidebar_settings"
+            title="Settings & Thresholds"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </motion.button>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={onToggleTheme}
+            data-testid="sidebar_theme"
+            title={isDark ? 'Switch to White Light Theme' : 'Switch to Pitch-Black Dark Theme'}
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors flex items-center gap-1"
+          >
+            <motion.span
+              key={isDark ? 'dark' : 'light'}
+              initial={{ rotate: -45, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-[var(--accent-text)]" />
+              ) : (
+                <Moon className="w-4 h-4 text-[var(--text-primary)]" />
+              )}
+            </motion.span>
+          </motion.button>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={onSignOut}
+            data-testid="sidebar_signout"
+            title="Sign Out"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-rose-500 hover:bg-[var(--bg-card-hover)] transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </motion.button>
+        </div>
+
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="px-2 py-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] text-[10px] font-mono font-semibold uppercase tracking-wider text-[var(--text-secondary)] transition-colors"
+            title={isDark ? 'Switch to Pure White theme' : 'Switch to Pitch Black theme'}
+          >
+            {isDark ? 'Black' : 'White'}
+          </button>
+        )}
+      </div>
+    </motion.aside>
   );
 };

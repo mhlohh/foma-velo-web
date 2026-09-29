@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Bike, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Mountain, Tv, Upload } from 'lucide-react';
 import { ActivityEntity, UserSettings } from '../../../types';
 import { PmcEngine } from '../../../utils/pmcEngine';
@@ -56,11 +57,26 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
     return map;
   }, [activities]);
 
+  const pmcByDay = useMemo(() => {
+    const summary = PmcEngine.computePmc(activities, settings, 60);
+    const map = new Map<string, { ctl: number; atl: number; tsb: number }>();
+    for (const day of summary.dailyList) {
+      const d = new Date(day.dateMillis);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      map.set(key, { ctl: day.ctl, atl: day.atl, tsb: day.tsb });
+    }
+    return {
+      map,
+      currentCtl: summary.currentCtl,
+      currentAtl: summary.currentAtl,
+      currentTsb: summary.currentTsb,
+    };
+  }, [activities, settings]);
+
   const grid = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
     const first = new Date(year, month, 1);
-    // Monday-first offset
     const lead = (first.getDay() + 6) % 7;
     const cells: (Date | null)[] = [];
     for (let i = 0; i < lead; i++) cells.push(null);
@@ -85,7 +101,6 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
     setSelectedWeekStart(monday);
   };
 
-  // Weekly summary for the selected week
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(selectedWeekStart);
@@ -94,53 +109,87 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
     });
   }, [selectedWeekStart]);
 
+  const weekRangeLabel = useMemo(() => {
+    const start = weekDays[0];
+    const end = weekDays[6];
+    if (!start || !end) return '';
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${startStr} – ${endStr}`;
+  }, [weekDays]);
+
   const weekSummary = useMemo(() => {
     let durationSec = 0;
     let distanceM = 0;
     let tss = 0;
-    let rideTss = 0;
+    let workoutCount = 0;
+    let latestPmc: { ctl: number; atl: number; tsb: number } | null = null;
+
     for (const d of weekDays) {
-      const acts = byDay.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? [];
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const acts = byDay.get(key) ?? [];
+      const dayPmc = pmcByDay.map.get(key);
+      if (dayPmc) {
+        latestPmc = dayPmc;
+      }
       for (const act of acts) {
+        workoutCount += 1;
         durationSec += act.movingTimeSec;
         distanceM += act.distanceMeters;
         const actTss = PmcEngine.calculateSingleActivityTss(act, settings);
         tss += actTss;
-        rideTss += act.distanceMeters > 0 ? actTss : 0;
       }
     }
-    return { durationSec, distanceKm: distanceM / 1000, tss, rideTss };
-  }, [weekDays, byDay, settings]);
+    return {
+      durationSec,
+      distanceKm: distanceM / 1000,
+      tss,
+      workoutCount,
+      ctl: latestPmc?.ctl ?? pmcByDay.currentCtl,
+      atl: latestPmc?.atl ?? pmcByDay.currentAtl,
+      tsb: latestPmc?.tsb ?? pmcByDay.currentTsb,
+    };
+  }, [weekDays, byDay, pmcByDay, settings]);
+
+  const isDateInSelectedWeek = (date: Date) => {
+    const start = weekDays[0];
+    const end = weekDays[6];
+    if (!start || !end) return false;
+    const t = date.getTime();
+    const endOfSunday = new Date(end);
+    endOfSunday.setHours(23, 59, 59, 999);
+    return t >= start.getTime() && t <= endOfSunday.getTime();
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">{monthLabel}</h2>
-          <button
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+            {monthLabel}
+          </h2>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.96 }}
             onClick={goToday}
-            className={`text-xs font-semibold border rounded-md px-3 py-1.5 transition-colors ${
-              isDark ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'
-            }`}
+            className="text-xs sm:text-sm font-semibold border border-[var(--border-hover)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card-hover)] text-[var(--text-primary)] rounded-lg px-3.5 py-2 transition-colors"
           >
             Today
-          </button>
+          </motion.button>
           <div className="flex items-center">
             <button
+              type="button"
               onClick={() => shiftMonth(-1)}
-              className={`p-1.5 border rounded-l-md transition-colors ${
-                isDark ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'
-              }`}
+              className="p-2 border border-[var(--border-hover)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card-hover)] rounded-l-lg text-[var(--text-primary)] transition-colors"
               aria-label="Previous month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={() => shiftMonth(1)}
-              className={`p-1.5 border rounded-r-md border-l-0 transition-colors ${
-                isDark ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'
-              }`}
+              className="p-2 border border-[var(--border-hover)] border-l-0 bg-[var(--bg-elevated)] hover:bg-[var(--bg-card-hover)] rounded-r-lg text-[var(--text-primary)] transition-colors"
               aria-label="Next month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -148,174 +197,259 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={onImportClick}
-          className="inline-flex items-center gap-2 bg-[#2f6fe4] hover:bg-[#245cc4] text-white text-sm font-bold px-4 py-2 rounded-full transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          Import CSV
-        </button>
+        <div className="flex items-center gap-2.5">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-hover)] text-xs font-medium text-[var(--text-secondary)]">
+            <CalendarIcon className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+            <span>Selected Week:</span>
+            <span className="font-mono font-semibold text-[var(--text-primary)]">
+              {weekRangeLabel}
+            </span>
+          </div>
+
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onImportClick}
+            className="ff-btn-sage inline-flex items-center gap-2 text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </motion.button>
+        </div>
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col xl:flex-row gap-5 items-stretch xl:items-start">
         {/* Month grid */}
-        <div
-          className={`flex-1 border rounded-lg overflow-hidden transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}
-        >
+        <div className="ff-surface-card flex-1 rounded-xl overflow-hidden border border-[var(--border-hover)]">
           {/* Weekday header */}
-          <div className={`grid grid-cols-7 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+          <div className="grid grid-cols-7 border-b border-[var(--border-hover)] bg-[var(--bg-elevated)]">
             {WEEKDAY_LABELS.map((d) => (
               <div
                 key={d}
-                className={`px-2 py-2 text-[11px] font-bold tracking-wider text-center ${
-                  isDark ? 'text-slate-400' : 'text-slate-500'
-                }`}
+                className="px-2 py-3 text-xs font-mono font-bold tracking-widest text-center text-[var(--text-primary)]"
               >
                 {d}
               </div>
             ))}
           </div>
 
-          {/* Day cells */}
-          <div className="grid grid-cols-7">
-            {grid.map((date, idx) => {
-              if (!date) {
+          {/* Animated Day cells */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={monthLabel}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="grid grid-cols-7"
+            >
+              {grid.map((date, idx) => {
+                if (!date) {
+                  return (
+                    <div
+                      key={`empty-${idx}`}
+                      className="min-h-[105px] sm:min-h-[148px] lg:min-h-[164px] border-b border-r border-[var(--border-hover)] bg-[var(--bg-canvas)]/60"
+                    />
+                  );
+                }
+                const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                const acts = byDay.get(key) ?? [];
+                const isToday = new Date().toDateString() === date.toDateString();
+                const inSelectedWeek = isDateInSelectedWeek(date);
+                const dayTotalTss = acts.reduce(
+                  (sum, a) => sum + Math.round(PmcEngine.calculateSingleActivityTss(a, settings)),
+                  0
+                );
+
                 return (
                   <div
-                    key={`empty-${idx}`}
-                    className={`min-h-[64px] sm:min-h-[104px] border-b border-r ${
-                      isDark ? 'border-slate-700/50' : 'border-slate-100'
-                    } ${idx % 7 === 6 ? '' : ''}`}
-                  />
-                );
-              }
-              const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-              const acts = byDay.get(key) ?? [];
-              const isToday =
-                new Date().toDateString() === date.toDateString();
-              const isSunday = idx % 7 === 6;
+                    key={key}
+                    onClick={() => {
+                      const monday = new Date(date);
+                      monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+                      monday.setHours(0, 0, 0, 0);
+                      setSelectedWeekStart(monday);
+                    }}
+                    className={`min-h-[105px] sm:min-h-[148px] lg:min-h-[164px] border-b border-r border-[var(--border-hover)] p-2 sm:p-2.5 cursor-pointer transition-colors ${
+                      inSelectedWeek
+                        ? 'bg-[var(--bg-elevated)]/75 hover:bg-[var(--bg-card-hover)]'
+                        : 'bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)]'
+                    }`}
+                  >
+                    {/* Day cell header: Date number + Daily total TSS */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-xs sm:text-sm font-mono font-bold w-7 h-7 flex items-center justify-center rounded-full ${
+                          isToday
+                            ? 'ff-badge shadow-sm'
+                            : acts.length > 0
+                              ? 'text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[var(--border-hover)]'
+                              : 'text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        {date.getDate()}
+                      </span>
 
-              return (
-                <div
-                  key={key}
-                  onClick={() => {
-                    const monday = new Date(date);
-                    monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
-                    monday.setHours(0, 0, 0, 0);
-                    setSelectedWeekStart(monday);
-                  }}
-                  className={`min-h-[64px] sm:min-h-[104px] border-b border-r p-1 sm:p-1.5 cursor-pointer transition-colors ${
-                    isDark
-                      ? 'border-slate-700/50 hover:bg-slate-700/30'
-                      : 'border-slate-100 hover:bg-slate-50'
-                  } ${isSunday ? '' : ''}`}
-                >
-                  <div className="flex items-center justify-between mb-0.5 sm:mb-1">
-                    <span
-                      className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ${
-                        isToday
-                          ? 'bg-[#2f6fe4] text-white'
-                          : isDark
-                          ? 'text-slate-400'
-                          : 'text-slate-600'
-                      }`}
-                    >
-                      {date.getDate()}
-                    </span>
-                  </div>
+                      {dayTotalTss > 0 && (
+                        <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--bg-pill)] text-[var(--accent-text)] border border-[var(--border-hover)]">
+                          {dayTotalTss} TSS
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="space-y-1">
-                    {acts.slice(0, 3).map((act, actIdx) => {
-                      const Icon = typeIcon(act.type);
-                      const tss = Math.round(PmcEngine.calculateSingleActivityTss(act, settings));
-                      return (
-                        <div
-                          key={act.id}
-                          className={`rounded px-1.5 py-1 text-[10px] leading-tight border-l-2 ${
-                            actIdx > 0 ? 'hidden sm:block' : ''}
-                            act.isPlanned
-                              ? isDark
-                                ? 'bg-purple-950/40 border-purple-500'
-                                : 'bg-purple-50 border-purple-400'
-                              : isDark
-                              ? 'bg-slate-700/60 border-[#2f6fe4]'
-                              : 'bg-slate-100 border-[#2f6fe4]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1 font-semibold truncate">
-                            <Icon className="w-2.5 h-2.5 shrink-0 text-[#7c3aed]" />
-                            <span className="truncate">{act.name}</span>
+                    {/* Workout Cards */}
+                    <div className="space-y-1.5">
+                      {acts.slice(0, 3).map((act, actIdx) => {
+                        const Icon = typeIcon(act.type);
+                        const tss = Math.round(
+                          PmcEngine.calculateSingleActivityTss(act, settings)
+                        );
+                        return (
+                          <div
+                            key={act.id}
+                            title={act.name}
+                            className={`rounded-lg px-2.5 py-2 border border-[var(--border-hover)] border-l-[3.5px] shadow-sm transition-transform hover:scale-[1.01] ${
+                              actIdx > 0 ? 'hidden sm:block' : ''
+                            } ${
+                              act.isPlanned
+                                ? 'bg-[var(--accent-subtle-bg)] border-l-[var(--accent-text)] text-[var(--text-primary)]'
+                                : 'bg-[var(--bg-elevated)] border-l-[#3b82f6] text-[var(--text-primary)]'
+                            }`}
+                          >
+                            <div className="flex items-start gap-1.5 font-semibold text-xs sm:text-[13px] leading-snug text-[var(--text-primary)]">
+                              <Icon
+                                className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${
+                                  act.isPlanned ? 'text-[var(--accent-text)]' : 'text-[#60a5fa]'
+                                }`}
+                              />
+                              <span className="line-clamp-1 sm:line-clamp-2 break-words">
+                                {act.name}
+                              </span>
+                            </div>
+
+                            <div className="font-mono text-[11px] sm:text-xs font-medium text-[var(--text-secondary)] mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                              <span className="hidden sm:inline text-[var(--text-primary)]/90">
+                                {formatHms(act.movingTimeSec)}
+                              </span>
+                              {act.distanceMeters > 0 && (
+                                <span className="hidden sm:inline text-[var(--text-secondary)]">
+                                  {(act.distanceMeters / 1000).toFixed(1)} km
+                                </span>
+                              )}
+                              {tss > 0 && (
+                                <span className="font-bold text-[var(--accent-text)]">
+                                  {tss} TSS
+                                </span>
+                              )}
+                              {tss === 0 && (
+                                <span className="sm:hidden">
+                                  {formatHms(act.movingTimeSec)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className={`font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            <span className="hidden sm:inline">
-                              {formatHms(act.movingTimeSec)}
-                              {act.distanceMeters > 0 && ` · ${(act.distanceMeters / 1000).toFixed(1)} km`}
-                              {tss > 0 && ` · ${tss} TSS`}
-                            </span>
-                            <span className="sm:hidden">{tss > 0 ? `${tss} TSS` : formatHms(act.movingTimeSec)}</span>
-                          </div>
+                        );
+                      })}
+                      {acts.length > 3 && (
+                        <div className="text-[11px] font-mono font-bold px-1.5 py-0.5 text-[var(--text-secondary)]">
+                          +{acts.length - 3} more
                         </div>
-                      );
-                    })}
-                    {acts.length > 3 && (
-                      <div className={`text-[9px] font-semibold px-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        +{acts.length - 3} more
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Weekly summary rail */}
-        <div
-          className={`hidden xl:block w-[280px] shrink-0 border rounded-lg p-4 transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-          }`}
-        >
-          <h3 className={`text-[11px] font-bold tracking-widest uppercase mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Week Summary
-          </h3>
+        <div className="w-full xl:w-[320px] shrink-0 ff-surface-card rounded-xl p-5 border border-[var(--border-hover)]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-mono font-bold tracking-widest uppercase text-[var(--text-primary)]">
+              Week Summary
+            </h3>
+            <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-hover)] text-[var(--text-secondary)]">
+              {weekRangeLabel}
+            </span>
+          </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2.5 mb-5 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-hover)]">
             <div className="text-center">
-              <div className="text-[10px] font-semibold uppercase" style={{ color: readableText('#1d4ed8', isDark) }}>Fitness</div>
-              <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>CTL</div>
+              <div
+                className="text-[11px] font-bold uppercase tracking-wide"
+                style={{ color: readableText('#3b82f6', isDark) }}
+              >
+                Fitness
+              </div>
+              <div className="text-base sm:text-lg font-mono font-bold text-[var(--text-primary)] mt-0.5">
+                {Math.round(weekSummary.ctl)}
+              </div>
+              <div className="text-[10px] font-mono font-semibold text-[var(--text-secondary)]">
+                CTL
+              </div>
+            </div>
+            <div className="text-center border-x border-[var(--border-hover)] px-1">
+              <div
+                className="text-[11px] font-bold uppercase tracking-wide"
+                style={{ color: readableText('#e11d48', isDark) }}
+              >
+                Fatigue
+              </div>
+              <div className="text-base sm:text-lg font-mono font-bold text-[var(--text-primary)] mt-0.5">
+                {Math.round(weekSummary.atl)}
+              </div>
+              <div className="text-[10px] font-mono font-semibold text-[var(--text-secondary)]">
+                ATL
+              </div>
             </div>
             <div className="text-center">
-              <div className="text-[10px] font-semibold uppercase" style={{ color: readableText('#e11d48', isDark) }}>Fatigue</div>
-              <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>ATL</div>
-            </div>
-            <div className="text-center">
-              <div className="text-[10px] font-semibold uppercase" style={{ color: readableText('#f59e0b', isDark) }}>Form</div>
-              <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>TSB</div>
+              <div
+                className="text-[11px] font-bold uppercase tracking-wide"
+                style={{ color: readableText('#f59e0b', isDark) }}
+              >
+                Form
+              </div>
+              <div className="text-base sm:text-lg font-mono font-bold text-[var(--text-primary)] mt-0.5">
+                {weekSummary.tsb > 0 ? `+${Math.round(weekSummary.tsb)}` : Math.round(weekSummary.tsb)}
+              </div>
+              <div className="text-[10px] font-mono font-semibold text-[var(--text-secondary)]">
+                TSB
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2.5 text-sm">
-            <div className="flex justify-between">
-              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Duration</span>
-              <span className="font-bold font-mono">{formatHms(weekSummary.durationSec)}</span>
+          <div className="space-y-3.5 text-sm">
+            <div className="flex items-center justify-between py-1.5 border-b border-[var(--border-subtle)]">
+              <span className="text-[var(--text-secondary)] font-medium">Workouts</span>
+              <span className="font-bold font-mono text-base text-[var(--text-primary)]">
+                {weekSummary.workoutCount}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Distance</span>
-              <span className="font-bold font-mono">{weekSummary.distanceKm.toFixed(1)} km</span>
+            <div className="flex items-center justify-between py-1.5 border-b border-[var(--border-subtle)]">
+              <span className="text-[var(--text-secondary)] font-medium">Duration</span>
+              <span className="font-bold font-mono text-base text-[var(--text-primary)]">
+                {formatHms(weekSummary.durationSec)}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>TSS</span>
-              <span className="font-bold font-mono">{Math.round(weekSummary.tss)}</span>
+            <div className="flex items-center justify-between py-1.5 border-b border-[var(--border-subtle)]">
+              <span className="text-[var(--text-secondary)] font-medium">Distance</span>
+              <span className="font-bold font-mono text-base text-[var(--text-primary)]">
+                {weekSummary.distanceKm.toFixed(1)} km
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[var(--text-secondary)] font-semibold">Total TSS</span>
+              <span className="font-bold font-mono text-lg text-[var(--accent-text)]">
+                {Math.round(weekSummary.tss)} TSS
+              </span>
             </div>
           </div>
 
-          <div className={`mt-4 pt-3 border-t text-xs space-y-2 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-            <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
-              Click any day in the calendar to inspect its week. Values reflect the week's
-              planned and completed workouts.
-            </p>
+          <div className="mt-5 pt-4 border-t border-[var(--border-hover)] text-xs leading-relaxed text-[var(--text-secondary)]">
+            Click any day in the calendar to inspect its week. Values reflect planned and completed
+            workouts.
           </div>
         </div>
       </div>

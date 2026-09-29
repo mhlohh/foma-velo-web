@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Heart, Zap, X } from 'lucide-react';
 import { UserSettings } from '../types';
 import { PmcEngine } from '../utils/pmcEngine';
@@ -19,35 +20,43 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
   const hrZones = PmcEngine.getHrZones(settings.lthr);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       data-testid="training_zones_sheet"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      style={{ backgroundColor: 'var(--bg-backdrop)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
     >
-      <div className={`border rounded-3xl p-6 w-full max-w-lg shadow-xl space-y-4 max-h-[90vh] overflow-y-auto transition-colors ${
-        isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-      }`}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+        className="ff-surface-card rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[var(--text-primary)]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold">Training Intensity Zones</h3>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Based on FTP ({settings.ftp}W) and LTHR ({settings.lthr} bpm)
+            <h3 className="text-sm font-semibold">Training Intensity Zones</h3>
+            <p className="text-xs text-[var(--text-muted)] font-mono">
+              FTP {settings.ftp}W · LTHR {settings.lthr} bpm
             </p>
           </div>
           <button
+            type="button"
             onClick={onDismiss}
-            className={`p-1 rounded-lg ${
-              isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-            }`}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Coggan Power Zones Z1-Z7 */}
         <div className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-            <Zap className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--accent-text)]">
+            <Zap className="w-3.5 h-3.5" />
             <span>Power Zones (Coggan iLevels)</span>
           </div>
 
@@ -55,23 +64,26 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
             {powerZones.map((zone) => (
               <div
                 key={zone.name}
-                className={`border rounded-xl p-2.5 flex items-center justify-between text-xs ${
-                  isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200'
-                }`}
+                className="border border-[var(--border-subtle)] bg-[var(--bg-canvas)] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
               >
                 <div className="flex items-center gap-2.5">
                   <span
-                    className="w-3 h-3 rounded-full shrink-0"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: zone.colorHex }}
                   />
                   <div>
-                    <span className="font-bold block">{zone.name}</span>
-                    <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="font-medium block text-[var(--text-primary)]">
+                      {zone.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">
                       {zone.percentRange}
                     </span>
                   </div>
                 </div>
-                <span className="font-bold font-mono" style={{ color: readableText(zone.colorHex, isDark) }}>
+                <span
+                  className="font-semibold font-mono"
+                  style={{ color: readableText(zone.colorHex, isDark) }}
+                >
                   {zone.rangeWatts}
                 </span>
               </div>
@@ -81,8 +93,11 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
 
         {/* Friel Heart Rate Zones Z1-Z5 */}
         <div className="space-y-2 pt-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
-            <Heart className="w-4 h-4" />
+          <div
+            className="flex items-center gap-1.5 text-xs font-semibold"
+            style={{ color: readableText('#e11d48', isDark) }}
+          >
+            <Heart className="w-3.5 h-3.5" />
             <span>Heart Rate Zones (Friel)</span>
           </div>
 
@@ -90,23 +105,26 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
             {hrZones.map((zone) => (
               <div
                 key={zone.name}
-                className={`border rounded-xl p-2.5 flex items-center justify-between text-xs ${
-                  isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200'
-                }`}
+                className="border border-[var(--border-subtle)] bg-[var(--bg-canvas)] rounded-xl px-3 py-2 flex items-center justify-between text-xs"
               >
                 <div className="flex items-center gap-2.5">
                   <span
-                    className="w-3 h-3 rounded-full shrink-0"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: zone.colorHex }}
                   />
                   <div>
-                    <span className="font-bold block">{zone.name}</span>
-                    <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="font-medium block text-[var(--text-primary)]">
+                      {zone.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">
                       {zone.percentRange}
                     </span>
                   </div>
                 </div>
-                <span className="font-bold font-mono" style={{ color: readableText(zone.colorHex, isDark) }}>
+                <span
+                  className="font-semibold font-mono"
+                  style={{ color: readableText(zone.colorHex, isDark) }}
+                >
                   {zone.rangeBpm}
                 </span>
               </div>
@@ -117,15 +135,14 @@ export const TrainingZonesSheet: React.FC<TrainingZonesSheetProps> = ({
         {/* Actions */}
         <div className="flex justify-end pt-2">
           <button
+            type="button"
             onClick={onDismiss}
-            className={`px-4 py-2 text-xs font-bold rounded-xl ${
-              isDark ? 'text-slate-200 bg-slate-700 hover:bg-slate-600' : 'text-slate-700 bg-slate-200 hover:bg-slate-300'
-            }`}
+            className="ff-btn-sage px-4 py-2 text-xs font-semibold rounded-lg"
           >
-            Close
+            Done
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

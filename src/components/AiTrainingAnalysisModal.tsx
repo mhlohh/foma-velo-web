@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import {
   Sparkles,
   X,
@@ -34,28 +35,32 @@ const PRESET_TOPICS = [
     label: 'Comprehensive PMC Analysis',
     icon: BrainCircuit,
     description: 'Deep physiological audit of Fitness, Fatigue, Form, and Ramp Rate.',
-    prompt: 'Provide a comprehensive sports-science analysis of my current PMC curve, fitness progression, fatigue accumulation, and readiness.',
+    prompt:
+      'Provide a comprehensive sports-science analysis of my current PMC curve, fitness progression, fatigue accumulation, and readiness.',
   },
   {
     id: 'ramp',
     label: 'Ramp Rate & Fatigue Check',
     icon: TrendingUp,
     description: 'Audit fitness build rate and prevent overreaching or burnout.',
-    prompt: 'Analyze my 7-day ramp rate and acute fatigue load. Am I increasing volume too fast or am I in a safe, productive sweet spot?',
+    prompt:
+      'Analyze my 7-day ramp rate and acute fatigue load. Am I increasing volume too fast or am I in a safe, productive sweet spot?',
   },
   {
     id: 'recovery',
     label: 'Recovery & Freshness Plan',
     icon: Flame,
     description: 'Tailored rest, active recovery, and upcoming load recommendations.',
-    prompt: 'Based on my current TSB and recent training stress, what recovery or training balance should I follow over the next 7-10 days?',
+    prompt:
+      'Based on my current TSB and recent training stress, what recovery or training balance should I follow over the next 7-10 days?',
   },
   {
     id: 'taper',
     label: 'Race Day / Event Taper',
     icon: Zap,
     description: 'Optimize TSB to achieve peak race readiness (+10 to +25 TSB).',
-    prompt: 'How should I structure my upcoming training and taper to peak for an important event while shedding fatigue and preserving fitness?',
+    prompt:
+      'How should I structure my upcoming training and taper to peak for an important event while shedding fatigue and preserving fitness?',
   },
 ];
 
@@ -82,7 +87,6 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // In-memory & Persistent cache per topic
   const [cache, setCache] = useState<Record<string, CachedAnalysis>>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_CACHE_KEY);
@@ -96,7 +100,6 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
   const analysisText = currentCached?.text || null;
   const generatedAt = currentCached?.generatedAt || null;
 
-  // Save to localStorage when cache changes
   const updateCache = (topicId: string, text: string, prompt: string) => {
     const updated = {
       ...cache,
@@ -114,7 +117,6 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
     }
   };
 
-  // Generate or refresh analysis
   const handleGenerateAnalysis = async (topicId?: string, overridePrompt?: string) => {
     if (!summary) return;
 
@@ -125,7 +127,6 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
     setIsLoading(true);
     setErrorMessage(null);
 
-    // Helper to format date cleanly with day of week (e.g. "2026-08-19 (Wed)")
     const formatActivityDate = (millis: number) => {
       try {
         const d = new Date(millis);
@@ -137,7 +138,6 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
       }
     };
 
-    // Prepare rich training data snapshot with correctly computed TSS for each ride
     const recentActivities = [...activities]
       .sort((a, b) => b.dateMillis - a.dateMillis)
       .slice(0, 25)
@@ -177,7 +177,9 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
         tsbForm: summary.currentTsb.toFixed(1),
         rampRate7d: summary.rampRate7d.toFixed(1),
         weeklyTss: Math.round(summary.weeklyTss ?? summary.totalTssLast7d),
-        weeklyDistanceKm: summary.weeklyDistanceKm ? Math.round(summary.weeklyDistanceKm) : undefined,
+        weeklyDistanceKm: summary.weeklyDistanceKm
+          ? Math.round(summary.weeklyDistanceKm)
+          : undefined,
         weeklyHours: summary.weeklyHours ? summary.weeklyHours.toFixed(1) : undefined,
         totalCareerDistanceKm: Math.round(summary.totalDistanceKm),
         formZoneTitle: summary.formStatus.title,
@@ -222,8 +224,12 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
         if (typeof msg === 'object') {
           msg = msg.message || JSON.stringify(msg);
         }
-        if (typeof msg === 'string' && (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE'))) {
-          msg = 'The AI service is experiencing temporary peak demand. Please click Retry in a few seconds.';
+        if (
+          typeof msg === 'string' &&
+          (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE'))
+        ) {
+          msg =
+            'The AI service is experiencing temporary peak demand. Please click Retry in a few seconds.';
         }
         throw new Error(msg);
       }
@@ -235,8 +241,13 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
     } catch (err: any) {
       console.error('AI Analysis failed:', err);
       let errMsg = err.message || 'Error generating analysis. Please try again.';
-      if (errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE')) {
-        errMsg = 'The AI service is experiencing temporary peak demand. Please click Retry in a few seconds.';
+      if (
+        errMsg.includes('503') ||
+        errMsg.includes('high demand') ||
+        errMsg.includes('UNAVAILABLE')
+      ) {
+        errMsg =
+          'The AI service is experiencing temporary peak demand. Please click Retry in a few seconds.';
       }
       setErrorMessage(errMsg);
     } finally {
@@ -254,7 +265,12 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
   const formatTimestamp = (millis: number) => {
     try {
       const d = new Date(millis);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+      return d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        month: 'short',
+        day: 'numeric',
+      });
     } catch {
       return '';
     }
@@ -263,85 +279,106 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
-      <div
-        className={`relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
-          isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-        }`}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
+      style={{ backgroundColor: 'var(--bg-backdrop)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+        className="ff-surface-card relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden text-[var(--text-primary)]"
       >
         {/* Header */}
-        <div
-          className={`flex items-center justify-between px-5 py-4 border-b ${
-            isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}
-        >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-sidebar)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+            <div className="w-9 h-9 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--accent-text)]">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-lg font-extrabold tracking-tight">
+                <h2 className="text-sm sm:text-base font-semibold tracking-tight">
                   AI Training Intelligence & Physiological Coach
                 </h2>
-                <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  Gemini AI
+                <span className="ff-badge hidden sm:inline text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full">
+                  Gemini
                 </span>
               </div>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className="text-xs text-[var(--text-muted)]">
                 Contextual analysis of your CTL, ATL, TSB, Ramp Rate, and workout loads
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl transition-colors ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-800'
-            }`}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
             title="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Live Snapshot Stat Strip */}
         {summary && (
-          <div
-            className={`px-5 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
-              isDark ? 'bg-slate-950/30 border-slate-800 text-slate-300' : 'bg-slate-100/70 border-slate-200 text-slate-700'
-            }`}
-          >
-            <div className="flex items-center gap-4 flex-wrap font-medium">
+          <div className="px-5 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            <div className="flex items-center gap-4 flex-wrap text-[var(--text-secondary)]">
               <span>
-                CTL (Fitness): <strong className="text-cyan-600 dark:text-cyan-400">{summary.currentCtl.toFixed(1)}</strong>
+                CTL:{' '}
+                <strong style={{ color: readableText('#3b82f6', isDark) }}>
+                  {summary.currentCtl.toFixed(1)}
+                </strong>
               </span>
               <span>
-                ATL (Fatigue): <strong className="text-rose-600 dark:text-rose-400">{summary.currentAtl.toFixed(1)}</strong>
+                ATL:{' '}
+                <strong style={{ color: readableText('#e11d48', isDark) }}>
+                  {summary.currentAtl.toFixed(1)}
+                </strong>
               </span>
               <span>
-                TSB (Form):{' '}
+                TSB:{' '}
                 <strong style={{ color: readableText(summary.formStatus.colorHex, isDark) }}>
-                  {summary.currentTsb >= 0 ? `+${summary.currentTsb.toFixed(1)}` : summary.currentTsb.toFixed(1)}
+                  {summary.currentTsb >= 0
+                    ? `+${summary.currentTsb.toFixed(1)}`
+                    : summary.currentTsb.toFixed(1)}
                 </strong>
               </span>
               <span>
                 Ramp:{' '}
-                <strong className={summary.rampRate7d > 8 ? 'text-amber-500 font-bold' : ''}>
-                  {summary.rampRate7d >= 0 ? `+${summary.rampRate7d.toFixed(1)}` : summary.rampRate7d.toFixed(1)}/wk
+                <strong
+                  style={
+                    summary.rampRate7d > 8
+                      ? { color: readableText('#f59e0b', isDark) }
+                      : undefined
+                  }
+                >
+                  {summary.rampRate7d >= 0
+                    ? `+${summary.rampRate7d.toFixed(1)}`
+                    : summary.rampRate7d.toFixed(1)}
+                  /wk
                 </strong>
               </span>
               <span>
-                Week Load: <strong>{Math.round(summary.weeklyTss ?? summary.totalTssLast7d)} TSS</strong>
+                Week Load:{' '}
+                <strong className="text-[var(--text-primary)]">
+                  {Math.round(summary.weeklyTss ?? summary.totalTssLast7d)} TSS
+                </strong>
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold">
+            <div className="flex items-center gap-1.5 text-[11px] font-sans font-semibold">
               <span
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: summary.formStatus.colorHex }}
               />
-              <span style={{ color: readableText(summary.formStatus.colorHex, isDark) }}>{summary.formStatus.title}</span>
+              <span style={{ color: readableText(summary.formStatus.colorHex, isDark) }}>
+                {summary.formStatus.title}
+              </span>
             </div>
           </div>
         )}
@@ -350,48 +387,45 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Quick Focus Selectors */}
           <div>
-            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Select Coaching Focus Area:
+            <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider mb-2 text-[var(--text-muted)]">
+              Select Coaching Focus Area
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {PRESET_TOPICS.map((topic) => {
                 const IconComponent = topic.icon;
                 const isSelected = selectedTopic === topic.id;
                 const hasCached = !!cache[topic.id]?.text;
                 return (
-                  <button
+                  <motion.button
                     key={topic.id}
-                    onClick={() => {
-                      setSelectedTopic(topic.id);
-                    }}
+                    type="button"
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedTopic(topic.id)}
                     disabled={isLoading}
-                    className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-colors ${
                       isSelected
-                        ? isDark
-                          ? 'bg-cyan-950/40 border-cyan-500/50 ring-1 ring-cyan-500/30'
-                          : 'bg-cyan-50/80 border-cyan-400 ring-1 ring-cyan-400'
-                        : isDark
-                        ? 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800'
-                        : 'bg-white border-slate-200 hover:bg-slate-50 shadow-sm'
+                        ? 'bg-[var(--bg-elevated)] border-[var(--accent-text)]'
+                        : 'bg-[var(--bg-canvas)] border-[var(--border-subtle)] hover:border-[var(--border-hover)]'
                     } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-bold text-xs flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
-                        <IconComponent className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span className="font-semibold text-xs flex items-center gap-1.5 text-[var(--text-primary)]">
+                        <IconComponent className="w-3.5 h-3.5 text-[var(--accent-text)]" />
                         {topic.label}
                       </span>
                       {hasCached ? (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[var(--accent-subtle-bg)] text-[var(--accent-text)]">
                           Saved
                         </span>
                       ) : isSelected ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-cyan-500" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent-text)]" />
                       ) : null}
                     </div>
-                    <p className={`text-[11px] leading-snug line-clamp-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <p className="text-[11px] leading-snug line-clamp-2 text-[var(--text-muted)]">
                       {topic.description}
                     </p>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -399,18 +433,15 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
 
           {/* Error Message */}
           {errorMessage && (
-            <div
-              className={`p-4 rounded-2xl border flex items-start gap-3 text-xs ${
-                isDark ? 'bg-rose-950/40 border-rose-800 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
-              }`}
-            >
+            <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start gap-3 text-xs text-rose-500">
               <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold">Analysis Request Failed</p>
                 <p className="mt-0.5">{errorMessage}</p>
                 <button
+                  type="button"
                   onClick={() => handleGenerateAnalysis(selectedTopic)}
-                  className="mt-2 text-xs font-bold underline hover:no-underline cursor-pointer"
+                  className="mt-2 text-xs font-semibold underline hover:no-underline cursor-pointer"
                 >
                   Retry Analysis
                 </button>
@@ -420,105 +451,92 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
 
           {/* Loading Skeleton */}
           {isLoading && (
-            <div className="p-6 rounded-3xl border border-cyan-500/20 bg-cyan-950/10 space-y-4 animate-pulse">
+            <div className="p-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] space-y-4 animate-pulse">
               <div className="flex items-center gap-3">
-                <RefreshCw className="w-5 h-5 text-cyan-500 animate-spin" />
-                <span className="text-sm font-bold text-cyan-500">
+                <RefreshCw className="w-4 h-4 text-[var(--accent-text)] animate-spin" />
+                <span className="text-xs font-semibold text-[var(--accent-text)]">
                   Synthesizing physiological training metrics with Gemini...
                 </span>
               </div>
               <div className="space-y-2.5">
-                <div className="h-4 bg-slate-700/30 rounded-lg w-5/6" />
-                <div className="h-4 bg-slate-700/30 rounded-lg w-full" />
-                <div className="h-4 bg-slate-700/30 rounded-lg w-4/6" />
-                <div className="h-4 bg-slate-700/30 rounded-lg w-3/4" />
+                <div className="h-3.5 bg-[var(--bg-elevated)] rounded w-5/6" />
+                <div className="h-3.5 bg-[var(--bg-elevated)] rounded w-full" />
+                <div className="h-3.5 bg-[var(--bg-elevated)] rounded w-4/6" />
+                <div className="h-3.5 bg-[var(--bg-elevated)] rounded w-3/4" />
               </div>
             </div>
           )}
 
-          {/* Empty / Unanalyzed State for current topic */}
+          {/* Empty / Unanalyzed State */}
           {!isLoading && !analysisText && !errorMessage && (
-            <div
-              className={`p-6 sm:p-8 rounded-3xl border text-center flex flex-col items-center justify-center space-y-3 ${
-                isDark ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
-              }`}
-            >
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
-                <BrainCircuit className="w-6 h-6" />
+            <div className="p-6 sm:p-8 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-center flex flex-col items-center justify-center space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--accent-text)] flex items-center justify-center">
+                <BrainCircuit className="w-5 h-5" />
               </div>
               <div className="max-w-md">
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
                   Ready to analyze {PRESET_TOPICS.find((t) => t.id === selectedTopic)?.label}
                 </h3>
-                <p className={`text-xs mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Click below to generate a physiological breakdown. Results are stored locally so you can review them anytime without repeating API calls.
+                <p className="text-xs mt-1 leading-relaxed text-[var(--text-muted)]">
+                  Generate a physiological breakdown. Results are cached locally so you can review
+                  them anytime without repeating API calls.
                 </p>
               </div>
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleGenerateAnalysis(selectedTopic)}
-                className="mt-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white shadow-md shadow-cyan-500/20 flex items-center gap-2 cursor-pointer transition-all"
+                className="ff-btn-sage mt-2 px-4 py-2 rounded-lg font-semibold text-xs flex items-center gap-2 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-3.5 h-3.5" />
                 <span>Generate Analysis</span>
-              </button>
+              </motion.button>
             </div>
           )}
 
-          {/* Analysis Content Output (Cached or freshly generated) */}
+          {/* Analysis Content Output */}
           {!isLoading && analysisText && (
-            <div
-              className={`p-5 sm:p-6 rounded-3xl border transition-all ${
-                isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50/80 border-slate-200'
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-700/30 dark:border-slate-800">
+            <div className="p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-[var(--border-subtle)]">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <BrainCircuit className="w-4 h-4 text-cyan-500" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  <BrainCircuit className="w-4 h-4 text-[var(--accent-text)]" />
+                  <h3 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)]">
                     Physiological Coach Assessment
                   </h3>
                   {generatedAt && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${
-                      isDark ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-white text-slate-600 border-slate-200'
-                    }`}>
-                      Saved from {formatTimestamp(generatedAt)}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                      {formatTimestamp(generatedAt)}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => handleGenerateAnalysis(selectedTopic)}
                     disabled={isLoading}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
-                      isDark
-                        ? 'bg-slate-800 hover:bg-slate-700 text-cyan-400 border-slate-700'
-                        : 'bg-white hover:bg-slate-100 text-cyan-600 border-slate-200 shadow-sm'
-                    }`}
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Refresh this analysis"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
                     <span>Refresh</span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={handleCopy}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
-                      isDark
-                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
-                    }`}
+                    className="text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Copy analysis"
                   >
                     {copied ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Copied!</span>
+                        <Check className="w-3 h-3 text-[var(--accent-text)]" />
+                        <span>Copied</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5" />
+                        <Copy className="w-3 h-3" />
                         <span>Copy</span>
                       </>
                     )}
@@ -526,18 +544,14 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
                 </div>
               </div>
 
-              {/* Render Formatted Markdown */}
-              <div className="prose prose-sm dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed space-y-3">
+              <div className="prose prose-sm dark:prose-invert max-w-none text-xs sm:text-sm text-[var(--text-primary)] leading-relaxed space-y-3">
                 <Markdown>{analysisText}</Markdown>
               </div>
             </div>
           )}
 
-          {/* Custom Question Bar */}
-          <div className="pt-2">
-            <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Ask a Specific Follow-up or Goal Question:
-            </label>
+          {/* Custom Question Composer */}
+          <div className="pt-1">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -545,49 +559,33 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
                   handleGenerateAnalysis(selectedTopic, customQuestion.trim());
                 }
               }}
-              className="flex items-center gap-2"
+              className="rounded-xl border border-[var(--border-subtle)] focus-within:border-[var(--accent-focus)] bg-[var(--bg-input)] p-3 space-y-2.5 transition-colors"
             >
               <input
                 type="text"
                 value={customQuestion}
                 onChange={(e) => setCustomQuestion(e.target.value)}
-                placeholder="e.g., 'I have a 100km hilly road race in 3 weeks. How should I adjust my weekly TSS?'"
+                placeholder="Ask a follow-up question — e.g., 'I have a 100km road race in 3 weeks, how should I adjust TSS?'"
                 disabled={isLoading}
-                className={`flex-1 px-4 py-2.5 rounded-2xl border text-xs sm:text-sm transition-all outline-none focus:ring-2 focus:ring-cyan-500 ${
-                  isDark
-                    ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500'
-                    : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 shadow-sm'
-                }`}
+                className="w-full bg-transparent text-xs sm:text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none"
               />
-              <button
-                type="submit"
-                disabled={isLoading || !customQuestion.trim()}
-                className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all shrink-0"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ask Coach</span>
-              </button>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                  Coggan PMC · Gemini Coach
+                </span>
+                <button
+                  type="submit"
+                  disabled={isLoading || !customQuestion.trim()}
+                  className="ff-btn-sage px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Continue</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
-
-        {/* Footer */}
-        <div
-          className={`flex items-center justify-between px-5 py-3 border-t text-xs ${
-            isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
-          }`}
-        >
-          <span>Powered by Gemini Sports Science & Coggan PMC Engine</span>
-          <button
-            onClick={() => handleGenerateAnalysis(selectedTopic)}
-            disabled={isLoading}
-            className="font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh Analysis
-          </button>
-        </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
