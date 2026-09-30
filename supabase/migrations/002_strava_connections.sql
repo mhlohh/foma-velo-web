@@ -4,18 +4,19 @@
 -- ============================================================
 
 create table if not exists public.strava_connections (
-  user_id                   uuid primary key references auth.users (id) on delete cascade,
-  strava_email              text,
-  strava_password_encrypted text,
-  strava_session_cookies    jsonb,
-  athlete_id                text,
-  sync_enabled              boolean not null default true,
-  last_sync_at              timestamptz,
-  last_sync_status          text not null default 'idle',
-  last_sync_error           text,
-  last_synced_count         integer not null default 0,
-  created_at                timestamptz not null default now(),
-  updated_at                timestamptz not null default now()
+  user_id                         uuid primary key references auth.users (id) on delete cascade,
+  strava_email                    text,
+  strava_password_encrypted       text,
+  strava_session_cookies          jsonb,
+  supabase_access_token_encrypted text,
+  athlete_id                      text,
+  sync_enabled                    boolean not null default true,
+  last_sync_at                    timestamptz,
+  last_sync_status                text not null default 'idle',
+  last_sync_error                 text,
+  last_synced_count               integer not null default 0,
+  created_at                      timestamptz not null default now(),
+  updated_at                      timestamptz not null default now()
 );
 
 comment on table public.strava_connections is
@@ -32,6 +33,17 @@ drop policy if exists "strava_connections_select_own" on public.strava_connectio
 create policy "strava_connections_select_own"
   on public.strava_connections for select
   using (auth.uid() = user_id);
+
+drop policy if exists "strava_connections_insert_own" on public.strava_connections;
+create policy "strava_connections_insert_own"
+  on public.strava_connections for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "strava_connections_update_own" on public.strava_connections;
+create policy "strava_connections_update_own"
+  on public.strava_connections for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 drop policy if exists "strava_connections_delete_own" on public.strava_connections;
 create policy "strava_connections_delete_own"
