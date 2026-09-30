@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Upload } from 'lucide-react';
+import { ArrowRight, RefreshCw } from 'lucide-react';
 import { ActivityEntity, DailyPmcData, PmcSummary, UserSettings } from '../../../types';
 import { PmcChart } from './PmcChart';
 
@@ -12,7 +12,7 @@ interface DashboardPageProps {
   onHorizonChange: (days: number) => void;
   selectedDay: DailyPmcData | null;
   onDaySelected: (day: DailyPmcData) => void;
-  onImportClick: () => void;
+  onStravaSyncClick: () => void;
   onAiClick: () => void;
 }
 
@@ -217,7 +217,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onHorizonChange,
   selectedDay,
   onDaySelected,
-  onImportClick,
+  onStravaSyncClick,
   onAiClick,
 }) => {
   const horizons = [
@@ -339,12 +339,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              data-testid="dashboard_import_btn"
-              onClick={onImportClick}
+              data-testid="dashboard_strava_sync_btn"
+              onClick={onStravaSyncClick}
               className="inline-flex items-center gap-2 border border-[var(--border-subtle)] bg-[var(--bg-canvas)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs sm:text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Import CSV</span>
+              <RefreshCw className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+              <span>Strava Auto-Sync</span>
             </motion.button>
           </div>
         </motion.div>

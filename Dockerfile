@@ -32,6 +32,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 RUN npm install -g tsx@4
 
 COPY server.ts ./
+COPY services/strava-scraper/src ./services/strava-scraper/src
 COPY --from=client-build /app/dist ./dist
 
 EXPOSE 3000

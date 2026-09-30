@@ -70,6 +70,32 @@ export class PmcEngine {
     }
   }
 
+  static resolveActivityTssSource(
+    activity: ActivityEntity,
+    settings: UserSettings
+  ): string {
+    if (activity.stravaTss !== null && activity.stravaTss !== undefined && activity.stravaTss > 0) {
+      return 'Strava Load';
+    }
+    const durationSec = activity.movingTimeSec;
+    if (durationSec <= 0) return 'Estimated';
+
+    const hasPower =
+      this.calculatePowerTss(activity, settings.ftp, durationSec) !== null;
+    const hasHr =
+      this.calculateHrTss(activity, settings.lthr, durationSec) !== null;
+
+    if (settings.calculationMode === CalculationMode.HEART_RATE) {
+      if (hasHr) return 'Heart Rate';
+      if (hasPower) return 'Power';
+      return 'Estimated';
+    }
+
+    if (hasPower) return 'Power';
+    if (hasHr) return 'Heart Rate';
+    return 'Estimated';
+  }
+
   private static calculatePowerTss(
     activity: ActivityEntity,
     ftp: number,

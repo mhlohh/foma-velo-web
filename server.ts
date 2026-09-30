@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
+import { registerStravaScraperRoutes } from './services/strava-scraper/src/routes';
 
 async function startServer() {
   const app = express();
@@ -95,6 +96,60 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
       });
     }
   });
+
+  // Proxy to standalone Docker Strava Scraper container if reachable,
+  // otherwise handle in-process using the shared scraper routes.
+  const getScraperUrl = () => process.env.STRAVA_SCRAPER_URL || 'http://127.0.0.1:4001';
+
+  app.use('/api/strava', async (req, res, next) => {
+    const baseUrl = getScraperUrl().replace(/\/+$/, '');
+    const url = `${baseUrl}/api/strava${req.url}`;
+    const supaUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const supaKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      '';
+    const authHeader = req.headers['authorization'];
+
+    try {
+      const response = await fetch(url, {
+        method: req.method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(supaUrl ? { 'x-supabase-url': supaUrl } : {}),
+          ...(supaKey ? { 'x-supabase-key': supaKey } : {}),
+          ...(typeof authHeader === 'string' ? { Authorization: authHeader } : {}),
+        },
+        body:
+          req.method !== 'GET' && req.method !== 'DELETE'
+            ? JSON.stringify({
+                ...(req.body ?? {}),
+                supabaseUrl: supaUrl,
+                supabaseKey: supaKey,
+              })
+            : undefined,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      // If an older standalone process returned a missing-env error, fall back to in-process handler
+      if (
+        response.status === 500 &&
+        typeof data?.error === 'string' &&
+        data.error.includes('Missing SUPABASE_URL')
+      ) {
+        next();
+        return;
+      }
+
+      res.status(response.status).json(data);
+    } catch {
+      // Standalone container not running; handle directly in-process
+      next();
+    }
+  });
+
+  registerStravaScraperRoutes(app, process.env.SYNC_CRON_SCHEDULE || '0 2 * * *');
 
   // Health check
   app.get('/api/health', (req, res) => {

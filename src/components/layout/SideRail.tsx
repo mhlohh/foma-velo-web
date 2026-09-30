@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
   CalendarDays,
-  Upload,
   Settings,
   LogOut,
   Plus,
@@ -15,6 +14,7 @@ import {
   Sun,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { PageId } from './TopNav';
@@ -23,7 +23,7 @@ export interface SideRailProps {
   activePage?: PageId;
   onDashboard: () => void;
   onCalendar?: () => void;
-  onImport: () => void;
+  onStravaSync?: () => void;
   onSettings: () => void;
   onToggleTheme: () => void;
   onSignOut: () => void;
@@ -40,7 +40,7 @@ export const SideRail: React.FC<SideRailProps> = ({
   activePage = 'dashboard',
   onDashboard,
   onCalendar,
-  onImport,
+  onStravaSync,
   onSettings,
   onToggleTheme,
   onSignOut,
@@ -85,7 +85,7 @@ export const SideRail: React.FC<SideRailProps> = ({
       animate={{ width: collapsed ? 60 : 228 }}
       transition={{ type: 'spring', stiffness: 340, damping: 32 }}
       data-siderail
-      className="hidden lg:flex flex-col shrink-0 select-none border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] text-[var(--text-primary)] overflow-hidden z-20 transition-colors"
+      className="hidden lg:flex lg:sticky lg:top-0 lg:h-screen flex-col shrink-0 select-none border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] text-[var(--text-primary)] overflow-hidden z-20 transition-colors"
     >
       {/* Top Brand Header */}
       <div className="h-12 px-3.5 flex items-center justify-between shrink-0">
@@ -263,17 +263,19 @@ export const SideRail: React.FC<SideRailProps> = ({
                     transition={{ duration: 0.18, ease: 'easeOut' }}
                     className="overflow-hidden pl-5 pr-1 pt-0.5 space-y-0.5"
                   >
-                    <motion.button
-                      type="button"
-                      whileHover={{ x: 2 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={onImport}
-                      data-testid="sidebar_import"
-                      className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]/60 transition-colors"
-                    >
-                      <Upload className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                      <span className="truncate">Import CSV</span>
-                    </motion.button>
+                    {onStravaSync && (
+                      <motion.button
+                        type="button"
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onStravaSync}
+                        data-testid="sidebar_strava_sync"
+                        className="w-full flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-[var(--accent-text)] hover:bg-[var(--bg-card-hover)]/60 transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+                        <span className="truncate">Strava Auto-Sync</span>
+                      </motion.button>
+                    )}
 
                     <motion.button
                       type="button"
@@ -333,16 +335,16 @@ export const SideRail: React.FC<SideRailProps> = ({
           </div>
         )}
 
-        {collapsed && (
+        {collapsed && onStravaSync && (
           <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-col items-center gap-1">
             <button
               type="button"
-              onClick={onImport}
-              data-testid="sidebar_import"
-              title="Import CSV"
-              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
+              onClick={onStravaSync}
+              data-testid="sidebar_strava_sync"
+              title="Strava Auto-Sync"
+              className="p-2 rounded-lg text-[var(--accent-text)] hover:bg-[var(--bg-card-hover)] transition-colors"
             >
-              <Upload className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         )}

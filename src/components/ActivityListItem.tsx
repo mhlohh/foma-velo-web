@@ -108,30 +108,34 @@ export const ActivityListItem: React.FC<ActivityListItemProps> = React.memo(
                 ` · ${(activity.distanceMeters / 1000).toFixed(1)} km`}
             </div>
 
-            <div className="flex items-center gap-3 mt-1 text-[11px] font-mono font-medium">
-              {activity.avgWatts && activity.avgWatts > 0 && (
-                <div
-                  className="flex items-center gap-1"
-                  style={{ color: readableText('#f59e0b', isDark) }}
-                >
-                  <Zap className="w-3 h-3" />
-                  <span>
-                    {Math.round(activity.avgWatts)}W
-                    {activity.weightedWatts ? ` (${Math.round(activity.weightedWatts)}W NP)` : ''}
-                  </span>
-                </div>
-              )}
+            {(Number(activity.avgWatts) > 0 || Number(activity.avgHr) > 0) && (
+              <div className="flex items-center gap-3 mt-1 text-[11px] font-mono font-medium">
+                {activity.avgWatts != null && activity.avgWatts > 0 && (
+                  <div
+                    className="flex items-center gap-1"
+                    style={{ color: readableText('#f59e0b', isDark) }}
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span>
+                      {Math.round(activity.avgWatts)}W
+                      {activity.weightedWatts != null && activity.weightedWatts > 0
+                        ? ` (${Math.round(activity.weightedWatts)}W NP)`
+                        : ''}
+                    </span>
+                  </div>
+                )}
 
-              {activity.avgHr && activity.avgHr > 0 && (
-                <div
-                  className="flex items-center gap-1"
-                  style={{ color: readableText('#e11d48', isDark) }}
-                >
-                  <Heart className="w-3 h-3" />
-                  <span>{Math.round(activity.avgHr)} bpm</span>
-                </div>
-              )}
-            </div>
+                {activity.avgHr != null && activity.avgHr > 0 && (
+                  <div
+                    className="flex items-center gap-1"
+                    style={{ color: readableText('#e11d48', isDark) }}
+                  >
+                    <Heart className="w-3 h-3" />
+                    <span>{Math.round(activity.avgHr)} bpm</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

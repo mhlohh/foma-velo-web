@@ -14,5 +14,32 @@ services:
       NODE_ENV: production
       PORT: 3000
       # Server-side secret — NOT baked into the client bundle.
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STRAVA_ENCRYPTION_KEY: ${STRAVA_ENCRYPTION_KEY:-}
+      # Internal Docker network URL for the Strava Scraper Microservice
+      STRAVA_SCRAPER_URL: http://strava-scraper:4001
+    depends_on:
+      - strava-scraper
+    restart: unless-stopped
+
+  strava-scraper:
+    build:
+      context: ./services/strava-scraper
+    image: foma-velo-strava-scraper:latest
+    ports:
+      - "4001:4001"
+    environment:
+      NODE_ENV: production
+      SCRAPER_PORT: 4001
+      # Runs once every day at 02:00 AM container time by default
+      SYNC_CRON_SCHEDULE: ${SYNC_CRON_SCHEDULE:-0 2 * * *}
+      RUN_SYNC_ON_STARTUP: ${RUN_SYNC_ON_STARTUP:-false}
+      SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STRAVA_ENCRYPTION_KEY: ${STRAVA_ENCRYPTION_KEY:-}
     restart: unless-stopped

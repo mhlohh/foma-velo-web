@@ -1,15 +1,15 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Sparkles, Upload, Zap, Calendar, Search } from 'lucide-react';
+import { Plus, Sparkles, Zap, Calendar, Search, RefreshCw } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 import { ActivityEntity, CalculationMode, DailyPmcData, UserSettings } from '../types';
 import { PmcEngine } from '../utils/pmcEngine';
-import { StravaCsvParser } from '../utils/stravaCsvParser';
 import {
   loadStoredActivities,
   saveStoredActivities,
   loadStoredSettings,
   saveStoredSettings,
+  isMockSampleActivity,
 } from '../utils/storage';
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -19,8 +19,8 @@ import {
   subscribeToActivities,
   subscribeToSettings,
   upsertActivity,
-  upsertActivities,
   deleteActivity as deleteActivityRemote,
+  deleteActivities,
   saveUserSettings,
 } from '../lib/supabaseService';
 
@@ -32,7 +32,7 @@ import { ActivityListItem } from './ActivityListItem';
 import { MetricsSummaryCards } from './MetricsSummaryCards';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CalendarPage } from './pages/calendar/CalendarPage';
-import { ImportCsvDialog } from './ImportCsvDialog';
+import { StravaConnectDialog } from './StravaConnectDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { AddWorkoutDialog } from './AddWorkoutDialog';
 import { TrainingZonesSheet } from './TrainingZonesSheet';
@@ -46,9 +46,7 @@ export const MainScreen: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
-  const [hasConfiguredThresholds, setHasConfiguredThresholds] = useState<boolean>(() => {
-    return localStorage.getItem('foma_velo_setup_done') === 'true';
-  });
+  const [hasConfiguredThresholds, setHasConfiguredThresholds] = useState<boolean>(true);
 
   const [activities, setActivities] = useState<ActivityEntity[]>(() => loadStoredActivities());
   const [settings, setSettings] = useState<UserSettings>(() => loadStoredSettings());
@@ -66,7 +64,7 @@ export const MainScreen: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<DailyPmcData | null>(null);
 
   // Dialogs
-  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showStravaDialog, setShowStravaDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAddWorkoutDialog, setShowAddWorkoutDialog] = useState(false);
   const [showZonesSheet, setShowZonesSheet] = useState(false);
@@ -109,6 +107,17 @@ export const MainScreen: React.FC = () => {
     let cancelled = false;
     setIsSyncing(true);
 
+    const purgeMockActivities = async (list: ActivityEntity[]): Promise<ActivityEntity[]> => {
+      const mockIds = list.filter(isMockSampleActivity).map((a) => a.id);
+      const realOnly = list.filter((a) => !isMockSampleActivity(a));
+      if (mockIds.length > 0) {
+        deleteActivities(userId, mockIds).catch((err) =>
+          console.warn('Failed to purge mock activities from Supabase:', err)
+        );
+      }
+      return realOnly;
+    };
+
     const loadInitial = async () => {
       try {
         const [remoteActivities, remoteSettings] = await Promise.all([
@@ -117,13 +126,10 @@ export const MainScreen: React.FC = () => {
         ]);
         if (cancelled) return;
 
-        if (remoteActivities.length > 0) {
-          setActivities(remoteActivities);
-          setHasConfiguredThresholds(true);
-          localStorage.setItem('foma_velo_setup_done', 'true');
-        } else if (activities.length > 0) {
-          await upsertActivities(userId, activities);
-        }
+        const cleanedRemote = await purgeMockActivities(remoteActivities);
+        setActivities(cleanedRemote);
+        setHasConfiguredThresholds(true);
+        localStorage.setItem('foma_velo_setup_done', 'true');
 
         if (remoteSettings) {
           setSettings(remoteSettings);
@@ -140,16 +146,11 @@ export const MainScreen: React.FC = () => {
     loadInitial();
 
     const unsubActivities = subscribeToActivities(userId, (remote) => {
-      if (remote.length > 0) {
-        setActivities(remote);
-      } else {
-        setActivities((prev) => {
-          if (prev.length > 0) {
-            upsertActivities(userId, prev).catch(() => {});
-          }
-          return prev;
-        });
-      }
+      purgeMockActivities(remote).then((cleaned) => {
+        if (!cancelled) {
+          setActivities(cleaned);
+        }
+      });
     });
 
     const unsubSettings = subscribeToSettings(userId, (remoteSettings) => {
@@ -208,21 +209,6 @@ export const MainScreen: React.FC = () => {
     () => activities.filter((a) => a.isPlanned).length,
     [activities]
   );
-
-  const handleImportCsv = async (csvText: string) => {
-    const imported = StravaCsvParser.parseCsv(csvText);
-    if (imported.length > 0) {
-      setActivities(imported);
-      if (session?.user) {
-        setIsSyncing(true);
-        try {
-          await upsertActivities(session.user.id, imported);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    }
-  };
 
   const handleAddWorkout = async (workout: ActivityEntity) => {
     setActivities((prev) => [workout, ...prev]);
@@ -332,7 +318,7 @@ export const MainScreen: React.FC = () => {
         activePage={activePage}
         onDashboard={() => setActivePage('dashboard')}
         onCalendar={() => setActivePage('calendar')}
-        onImport={() => setShowImportDialog(true)}
+        onStravaSync={() => setShowStravaDialog(true)}
         onSettings={() => setShowSettingsDialog(true)}
         onToggleTheme={() => toggleTheme()}
         onSignOut={handleSignOut}
@@ -357,7 +343,7 @@ export const MainScreen: React.FC = () => {
           onQuickAddWorkout={() => setShowAddWorkoutDialog(true)}
         />
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 max-w-[1600px] w-full mx-auto overflow-x-hidden">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
           {/* Minimalist Quick Action Toolbar */}
           <div className="flex items-center justify-between gap-2 mb-5 flex-wrap">
             {/* Calculation Mode Pills (Auto / Power / HR) */}
@@ -399,13 +385,13 @@ export const MainScreen: React.FC = () => {
                 type="button"
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.97 }}
-                data-testid="import_csv_btn"
-                onClick={() => setShowImportDialog(true)}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 transition-colors"
-                title="Import Strava CSV"
+                data-testid="strava_sync_btn"
+                onClick={() => setShowStravaDialog(true)}
+                className="px-3 py-1.5 rounded-lg border border-[var(--accent-subtle-border)] bg-[var(--accent-subtle-bg)] hover:border-[var(--accent-text)] text-xs font-semibold text-[var(--accent-text)] flex items-center gap-1.5 transition-colors"
+                title="Strava Daily Auto-Sync Microservice"
               >
-                <Upload className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                <span className="hidden sm:inline">Import CSV</span>
+                <RefreshCw className="w-3.5 h-3.5 text-[var(--accent-text)]" />
+                <span className="hidden sm:inline">Strava Auto-Sync</span>
               </motion.button>
 
               <motion.button
@@ -454,24 +440,24 @@ export const MainScreen: React.FC = () => {
             {activePage === 'calendar' ? (
               <motion.div
                 key="page-calendar"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
               >
                 <CalendarPage
                   activities={activities}
                   settings={settings}
-                  onImportClick={() => setShowImportDialog(true)}
+                  onDeleteActivity={handleDeleteActivity}
                 />
               </motion.div>
             ) : (
               <motion.div
                 key="page-dashboard"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
                 className="space-y-5"
               >
                 <MetricsSummaryCards
@@ -487,7 +473,7 @@ export const MainScreen: React.FC = () => {
                   onHorizonChange={setHorizonDays}
                   selectedDay={selectedDay}
                   onDaySelected={setSelectedDay}
-                  onImportClick={() => setShowImportDialog(true)}
+                  onStravaSyncClick={() => setShowStravaDialog(true)}
                   onAiClick={() => setShowAiAnalysisModal(true)}
                 />
 
@@ -569,16 +555,16 @@ export const MainScreen: React.FC = () => {
                         No activities found
                       </p>
                       <p className="text-xs max-w-sm mx-auto text-[var(--text-muted)]">
-                        Try adjusting your search query, source filter, or import your Strava
-                        activities.csv dataset.
+                        Connect your Strava account for daily automated scraping, or plan a workout
+                        manually.
                       </p>
-                      <div className="pt-2 flex justify-center">
+                      <div className="pt-2 flex justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setShowImportDialog(true)}
+                          onClick={() => setShowStravaDialog(true)}
                           className="ff-btn-sage px-3.5 py-1.5 text-xs font-semibold rounded-lg"
                         >
-                          Import CSV
+                          Connect Strava Auto-Sync
                         </button>
                       </div>
                     </div>
@@ -605,10 +591,18 @@ export const MainScreen: React.FC = () => {
 
       {/* Modals & Dialogs with AnimatePresence */}
       <AnimatePresence>
-        {showImportDialog && (
-          <ImportCsvDialog
-            onDismiss={() => setShowImportDialog(false)}
-            onImport={handleImportCsv}
+        {showStravaDialog && (
+          <StravaConnectDialog
+            userId={user.id}
+            onDismiss={() => setShowStravaDialog(false)}
+            onSynced={() => {
+              fetchActivities(user.id)
+                .then((remote) => {
+                  const cleaned = remote.filter((a) => !isMockSampleActivity(a));
+                  setActivities(cleaned);
+                })
+                .catch(() => {});
+            }}
           />
         )}
       </AnimatePresence>

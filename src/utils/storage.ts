@@ -15,24 +15,49 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   atlDays: 7,
 };
 
+export const MOCK_SAMPLE_NAMES = [
+  'Easy Recovery Spin',
+  'Zwift - 3x12m SweetSpot Intervals',
+  'Tuesday Night SST Repeats',
+  'Mid-week Zone 2 Aerobic Base',
+  'Zwift Racing League - Crit Sprint',
+  'Saturday Alpine Ridge Endurance Ride',
+  'Sunday Paceline & Espresso Ride',
+  '[PLANNED] 4x8m VO2Max Intervals',
+  '[PLANNED] Weekend Century Gran Fondo',
+];
+
+const MOCK_SAMPLE_NAME_SET = new Set(MOCK_SAMPLE_NAMES);
+
+export function isMockSampleActivity(activity: ActivityEntity): boolean {
+  if (activity.stravaActivityId) return false;
+  if (activity.id >= 1000 && activity.id < 10000 && !activity.isManual) {
+    return true;
+  }
+  if (MOCK_SAMPLE_NAME_SET.has((activity.name || '').trim()) && !activity.isManual) {
+    return true;
+  }
+  return false;
+}
+
 export function loadStoredActivities(): ActivityEntity[] {
   try {
     const raw = localStorage.getItem(ACTIVITIES_KEY);
     if (!raw) {
-      const defaultSample = generatePresetSampleData();
-      saveStoredActivities(defaultSample);
-      return defaultSample;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (Array.isArray(parsed)) {
+      const cleaned = parsed.filter((a: ActivityEntity) => !isMockSampleActivity(a));
+      if (cleaned.length !== parsed.length) {
+        saveStoredActivities(cleaned);
+      }
+      return cleaned;
     }
-    const defaultSample = generatePresetSampleData();
-    saveStoredActivities(defaultSample);
-    return defaultSample;
+    return [];
   } catch (e) {
     console.error('Error loading stored activities:', e);
-    return generatePresetSampleData();
+    return [];
   }
 }
 

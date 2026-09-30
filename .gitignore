@@ -7,6 +7,7 @@
 *.p12
 *.pfx
 secrets.json
+.strava-connections.json
 
 # ---- Dependencies ----
 node_modules
