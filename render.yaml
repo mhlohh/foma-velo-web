@@ -1,0 +1,75 @@
+services:
+  # -------------------------------------------------------------
+  # 1. Main Foma Velo Web App + Server (Public Web Service)
+  # -------------------------------------------------------------
+  - type: web
+    name: foma-velo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # 512MB+ recommended for Node 22
+    region: oregon # or frankfurt, singapore, ohio
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STRAVA_ENCRYPTION_KEY
+        sync: false
+      - key: STRAVA_SCRAPER_URL
+        value: http://strava-scraper:4001
+    dockerBuildArgs:
+      - key: VITE_SUPABASE_URL
+        value: ${VITE_SUPABASE_URL}
+      - key: VITE_SUPABASE_ANON_KEY
+        value: ${VITE_SUPABASE_ANON_KEY}
+
+  # -------------------------------------------------------------
+  # 2. Strava Scraper Microservice (Private Background Service)
+  # -------------------------------------------------------------
+  - type: pserv
+    name: strava-scraper
+    runtime: docker
+    dockerfilePath: ./services/strava-scraper/Dockerfile
+    dockerContext: ./services/strava-scraper
+    plan: starter # 1GB RAM recommended for Playwright/Chromium
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SCRAPER_PORT
+        value: 4001
+      - key: SYNC_CRON_SCHEDULE
+        value: "0 2 * * *"
+      - key: SUPABASE_URL
+        fromService:
+          type: web
+          name: foma-velo
+          envVarKey: VITE_SUPABASE_URL
+      - key: VITE_SUPABASE_URL
+        fromService:
+          type: web
+          name: foma-velo
+          envVarKey: VITE_SUPABASE_URL
+      - key: VITE_SUPABASE_ANON_KEY
+        fromService:
+          type: web
+          name: foma-velo
+          envVarKey: VITE_SUPABASE_ANON_KEY
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        fromService:
+          type: web
+          name: foma-velo
+          envVarKey: SUPABASE_SERVICE_ROLE_KEY
+      - key: STRAVA_ENCRYPTION_KEY
+        fromService:
+          type: web
+          name: foma-velo
+          envVarKey: STRAVA_ENCRYPTION_KEY
