@@ -65,6 +65,7 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
 
       let lastError: any = null;
       let generatedText: string | undefined;
+      let usedModel: string | undefined;
 
       for (let attempt = 0; attempt < candidateModels.length; attempt++) {
         const model = candidateModels[attempt];
@@ -80,6 +81,7 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
 
           if (response.text) {
             generatedText = response.text;
+            usedModel = model;
             break;
           }
         } catch (err: any) {
@@ -88,6 +90,10 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
           if (!isRetryableError(err) || isLastCandidate) {
             throw err;
           }
+          console.warn(
+            `[ai] ${model} unavailable (${err?.status ?? 'unknown'}), falling back to ${candidateModels[attempt + 1]}:`,
+            err?.message
+          );
           // Wait with progressive backoff before attempting next candidate
           await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 800));
         }
@@ -97,8 +103,13 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
         throw lastError || new Error('All AI models are temporarily busy. Please retry in a few moments.');
       }
 
+      console.log(
+        `[ai] analyze-training answered by ${usedModel}${usedModel === candidateModels[0] ? '' : ' (fallback)'}`
+      );
+
       res.json({
         analysis: generatedText,
+        model: usedModel,
       });
     } catch (error: any) {
       console.error('Error generating AI analysis:', error);

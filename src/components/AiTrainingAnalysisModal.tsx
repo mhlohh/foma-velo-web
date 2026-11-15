@@ -68,9 +68,11 @@ interface CachedAnalysis {
   text: string;
   generatedAt: number;
   prompt: string;
+  model?: string;
 }
 
 const STORAGE_CACHE_KEY = 'foma_velo_ai_analysis_cache';
+const PRIMARY_AI_MODEL = 'gemini-3.5-flash-lite';
 
 export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = ({
   isOpen,
@@ -99,14 +101,17 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
   const currentCached = cache[selectedTopic];
   const analysisText = currentCached?.text || null;
   const generatedAt = currentCached?.generatedAt || null;
+  const answerModel = currentCached?.model || null;
+  const isFallbackModel = !!answerModel && answerModel !== PRIMARY_AI_MODEL;
 
-  const updateCache = (topicId: string, text: string, prompt: string) => {
+  const updateCache = (topicId: string, text: string, prompt: string, model?: string) => {
     const updated = {
       ...cache,
       [topicId]: {
         text,
         generatedAt: Date.now(),
         prompt,
+        model,
       },
     };
     setCache(updated);
@@ -234,7 +239,7 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
         throw new Error(msg);
       }
 
-      updateCache(targetTopicId, data.analysis, finalPrompt || '');
+      updateCache(targetTopicId, data.analysis, finalPrompt || '', data.model);
       if (customQuestion.trim()) {
         setCustomQuestion('');
       }
@@ -507,6 +512,19 @@ export const AiTrainingAnalysisModal: React.FC<AiTrainingAnalysisModalProps> = (
                   {generatedAt && (
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
                       {formatTimestamp(generatedAt)}
+                    </span>
+                  )}
+                  {answerModel && (
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] ${isFallbackModel ? 'font-semibold' : 'text-[var(--text-muted)]'}`}
+                      style={isFallbackModel ? { color: readableText('#f59e0b', isDark) } : undefined}
+                      title={
+                        isFallbackModel
+                          ? `Fallback model: ${PRIMARY_AI_MODEL} was unavailable, so ${answerModel} answered this request.`
+                          : 'Primary Gemini model used for this analysis.'
+                      }
+                    >
+                      {isFallbackModel ? `${answerModel} · fallback` : answerModel}
                     </span>
                   )}
                 </div>
