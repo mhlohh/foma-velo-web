@@ -51,7 +51,7 @@ ${focusArea ? `Specific focus area requested: ${focusArea}` : ''}
 ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a comprehensive physiological and performance analysis of my current training data, fitness progression, and recommendations for the coming weeks.'}`;
 
       // Fallback model list with high-availability priority
-      const candidateModels = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
+      const candidateModels = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
       let lastError: any = null;
       let generatedText: string | undefined;
 

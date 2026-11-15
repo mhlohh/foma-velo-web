@@ -38,7 +38,7 @@ Instead of manually uploading CSV files, Foma Velo includes a dedicated **Strava
   - **Ride Details View (Smooth Motion Transition)**: Clicking any ride card in the calendar smoothly transitions the right-hand card to display full ride telemetry (TSS source, Moving/Elapsed Time, Distance, Average Speed, Elevation Gain, Avg/Normalized/Max Power, Intensity Factor, Avg/Max Heart Rate, Energy Output in kJ, Day CTL/ATL/TSB snapshot, Strava deep link, and workout deletion).
 
 ### 4. AI Cycling Coach (Google Gemini)
-- Generates structured physiological coaching audits based on your live PMC metrics, recent workout distribution, and target focus areas using Gemini models (`gemini-2.5-flash` with automatic fallback).
+- Generates structured physiological coaching audits based on your live PMC metrics, recent workout distribution, and target focus areas using Gemini models (`gemini-3.5-flash-lite` with automatic fallback).
 
 ### 5. High-Contrast Dual Theme & Collapsible Workspace
 - **Pitch-Black Dark Mode**: Pure `#000000` canvas, `#0c0c0e` cards, and `#c8e6c9` sage accents.
