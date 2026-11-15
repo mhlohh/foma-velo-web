@@ -50,8 +50,19 @@ ${JSON.stringify(trainingContext, null, 2)}
 ${focusArea ? `Specific focus area requested: ${focusArea}` : ''}
 ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a comprehensive physiological and performance analysis of my current training data, fitness progression, and recommendations for the coming weeks.'}`;
 
-      // Fallback model list with high-availability priority
-      const candidateModels = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
+      // Primary model plus a lite fallback. Only transient/unavailable failures
+      // advance the chain, so an auth, quota, safety or malformed-request error
+      // fails fast instead of burning a call per model.
+      const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+      const retryableStatuses = [429, 404, 503];
+      const isRetryableError = (err: any) => {
+        const status = Number(err?.status ?? err?.code ?? err?.error?.code);
+        if (retryableStatuses.includes(status)) return true;
+        // Some SDK failures only carry the code inside the message (e.g. "503 UNAVAILABLE")
+        const message = typeof err?.message === 'string' ? err.message : '';
+        return retryableStatuses.some((code) => message.includes(String(code)));
+      };
+
       let lastError: any = null;
       let generatedText: string | undefined;
 
@@ -73,6 +84,10 @@ ${prompt ? `Athlete's specific question/note: ${prompt}` : 'Please provide a com
           }
         } catch (err: any) {
           lastError = err;
+          const isLastCandidate = attempt === candidateModels.length - 1;
+          if (!isRetryableError(err) || isLastCandidate) {
+            throw err;
+          }
           // Wait with progressive backoff before attempting next candidate
           await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 800));
         }
